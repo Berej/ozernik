@@ -13,7 +13,7 @@ OZERNIK_ID = 722824269683359877
 
 
 # Don't forget to change DEBUG_MODE while working, dear developers :)
-DEBUG_MODE = True
+DEBUG_MODE = False
 
 if DEBUG_MODE:
     GUILD_ID = TESTSERVER_ID 
