@@ -1,4 +1,5 @@
 build/*
 .venv
 cogs/__pycache__/*
+base*
 token.txt
