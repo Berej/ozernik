@@ -1,3 +1,4 @@
 build/*
-.env
-vOzer
+.venv
+cogs/__pycache__/*
+token.txt
