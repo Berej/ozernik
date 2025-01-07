@@ -74,7 +74,7 @@ class ConfirmTransfer(discord.ui.View):
 class DuelistTransferCog(commands.GroupCog, name = 'transfer'):
     def __init__(self, bot):
         self.bot = bot
-        set_dl(bot)  # Initialize roles
+        set_dl(self.bot)  # Initialize roles
 
     @app_commands.command(name="duelist", description="Передать уровень дуэлянта другому человеку")
     @app_commands.rename(recipient="получатель")
