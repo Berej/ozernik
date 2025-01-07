@@ -42,6 +42,8 @@ async def load_extensions():
 async def on_ready():
     print('Login: {}'.format(bot.user))
 
+    await load_extensions()  # Call cogs loading
+
     guild = discord.Object(id=GUILD_ID)
 
     await bot.tree.sync(guild=guild)
@@ -62,7 +64,6 @@ async def main():
         return
 
     async with bot:
-        await load_extensions()  # Call cogs loading
         await bot.start(token)
 
 
