@@ -6,7 +6,7 @@ import typing
 from datetime import datetime
 import asyncio
 
-glory_mods = [779015800555176006, 725675581881974794, 1296437623761539146]
+glory_mods = [779015800555176006, 725675581881974794, 1296437623761539146, 780422873122603018]
 #glory_group = app_commands.Group(name='активность', description='Работа с "залом славы"')
 
 #Checking and creating DB
@@ -28,8 +28,10 @@ def new_rank_base(guild):
     con.close
 
 #Moderator check
-def is_gm(user_roles):
-    for role in user_roles:
+def is_gm(user):
+    if user.id == 640504347137933334: #Albert Vanderboom (electricalsheep)
+        return True
+    for role in user.roles:
         if role.id in glory_mods:
             return True
 
@@ -245,7 +247,7 @@ class GloryGroup(commands.GroupCog, name="активность", ):
     @app_commands.rename(channel='канал')
     @app_commands.describe(channel='Канал "Зал славы", в котором публикуется таблица лидеров')
     async def start_glory(self, interaction: discord.Interaction, channel: discord.TextChannel):
-        if is_gm(interaction.user.roles) == True:
+        if is_gm(interaction.user) == True:
             con = sqlite3.connect('base {}.db'.format(interaction.guild.id))
             con.execute('''CREATE TABLE IF NOT EXISTS "glory settings" ("glory channel" INTEGER, "glory message" INTEGER, "season" INTEGER NOT NULL DEFAULT 2)''')
             try:
@@ -300,7 +302,7 @@ class GloryGroup(commands.GroupCog, name="активность", ):
         reason: app_commands.Choice[int],
         count: typing.Optional[int] = None,
     ):
-        if is_gm(interaction.user.roles) == True:
+        if is_gm(interaction.user) == True:
             # Looking for user in DB
             exrank = OzRank(user.id, interaction.guild, action.value, reason.value, count)
             if exrank == None:
@@ -315,7 +317,7 @@ class GloryGroup(commands.GroupCog, name="активность", ):
             
     @app_commands.command(name='добавить', description='Добавить участника в "Зал славы"')
     async def add_member(self, interaction:discord.Interaction, user:discord.Member):
-        if  is_gm(interaction.user.roles) == True:
+        if  is_gm(interaction.user) == True:
             con = sqlite3.connect('base {}.db'.format(interaction.guild.id))
             con.row_factory = lambda cursor, row: row[0]
             if user.id in con.execute('SELECT "uid" FROM "rank"').fetchall():
@@ -362,7 +364,7 @@ class GloryGroup(commands.GroupCog, name="активность", ):
 
     @app_commands.command(name='отчёт', description='Запросить таблицу Зала славы')
     async def glory_report(self, interaction:discord.Interaction):
-        if is_gm(interaction.user.roles) == True:
+        if is_gm(interaction.user) == True:
             report_path = create_report(interaction)
             print('Отправка отчёта')
             with open(report_path, 'rb') as report:
@@ -373,7 +375,7 @@ class GloryGroup(commands.GroupCog, name="активность", ):
     # 
     @app_commands.command(name='сброс', description='Завершить сезон')
     async def reset_season(self, interaction:discord.Interaction):
-        if is_gm(interaction.user.roles) == True:
+        if is_gm(interaction.user) == True:
             con = sqlite3.connect('base {}.db'.format(interaction.guild.id))
             # recount
             con.execute('UPDATE rank SET "sum" = "event"+"sigame"+"top 1"+"top 3"+"lib"+"public"+"role active"+"role custom"')
