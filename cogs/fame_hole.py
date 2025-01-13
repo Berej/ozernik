@@ -29,7 +29,7 @@ def new_rank_base(guild):
 
 #Moderator check
 def is_gm(user):
-    if user.id == 640504347137933334: #Albert Vanderboom (electricalsheep)
+    if (user.id == 640504347137933334) or (user.id == 685425244051079222): #Albert Vanderboom (electricalsheep)
         return True
     for role in user.roles:
         if role.id in glory_mods:
@@ -54,8 +54,8 @@ def create_top(guild):
                     place = ':third_place:'
                 top_embed.add_field(name='{place} {member}'.format(place = place, member = guild.get_member(row[0]).display_name), value='Баллов в сезоне: ***{season}*** \n-# Всего баллов: {total}'.format(season = row[1], total = row[1]+row[2]), inline=False)
                 num += 1
-            except:
-                pass
+            except Exception as e:
+                print(e)
     return top_embed
 
 ## Ranks stuff for DB
@@ -137,30 +137,30 @@ def get_rank(uid, guild):
 def top_10(guild):
     score_embed = discord.Embed(title='Топ-10 зала славы', color=discord.Color.red())
     new_rank_base(guild)
-    con = sqlite3.connect('base {}.db'.format)
+    con = sqlite3.connect('base {}.db'.format(guild.id))
     cursor = con.execute('SELECT "uid", "sum", "past seasons" FROM rank ORDER BY "sum" DESC LIMIT 10')
     num = 1
     for row in cursor:
         try:
             score_embed.add_field(name='{num}. {user}'.format(num = num, user = guild.get_member(int(row[0])).display_name), value='**Баллов в сезоне: {sum}**\nВсего: {total}'.format(sum = row[1], total = row[1]+row[2]), inline=False)
             num += 1
-        except:
-            pass
+        except Exception as e:
+            print(e)
     con.close()
     return score_embed
 # global top
 def top_all(guild):
     score_embed = discord.Embed(title='Полный топ зала славы', color=discord.Color.red())
     new_rank_base(guild)
-    con = sqlite3.connect('base {}.db'.format)
+    con = sqlite3.connect('base {}.db'.format(guild.id))
     cursor = con.execute('SELECT "uid", "sum", "past seasons" FROM "rank" ORDER BY "sum" DESC LIMIT 25').fetchall()# [0] id   [1] сумма сезона   [2] прошлые сезоны
     num = 1
     for row in cursor:
         try:
             score_embed.add_field(name='{num}. {user}'.format(num = num, user = guild.get_member(int(row[0])).display_name), value='**Баллов в сезоне: {sum}**\nВсего: {total}'.format(sum = row[1], total = row[1]+row[2]), inline=False)
             num += 1
-        except:
-            pass
+        except Exception as e:
+            print(e)
     con.close()
     return score_embed
 
@@ -187,7 +187,7 @@ def create_report(interaction):
             try:
                 tab.write('\n{user} ({id});{event};{sigame};{top1};{top3};{lib};{posts};{roleactive};{rolejust};{sum};{pastseasons}'.format(user = interaction.guild.get_member(row[0]).display_name, id = interaction.guild.get_member(row[0]), event = row[2], sigame = row[3], top1 = row[4], top3 = row[5], lib = row[6], posts = row[7], roleactive = row[8], rolejust = row[9], sum = row[1], pastseasons = row[10]))
             except:
-                tab.write('\nПотеряный пользователь ({id});{event};{sigame};{top1};{top3};{lib};{posts};{roleactive};{rolejust};{sum};{pastseasons}'.format(id = interaction.guild.get_member(row[0]), event = row[2], sigame = row[3], top1 = row[4], top3 = row[5], lib = row[6], posts = row[7], roleactive = row[8], rolejust = row[9], sum = row[1], pastseasons = row[10]))
+                tab.write('\nПотеряный пользователь ({id});{event};{sigame};{top1};{top3};{lib};{posts};{roleactive};{rolejust};{sum};{pastseasons}'.format(id = row[0], event = row[2], sigame = row[3], top1 = row[4], top3 = row[5], lib = row[6], posts = row[7], roleactive = row[8], rolejust = row[9], sum = row[1], pastseasons = row[10]))
     return report_path
     
 async def upd_wall(self, guild):
@@ -196,8 +196,8 @@ async def upd_wall(self, guild):
         message = sqlite3.connect('base {}.db'.format(guild.id)).execute('SELECT "glory message" FROM "glory settings"').fetchone()[0]
         print(channel, message)
         await self.bot.get_channel(channel).get_partial_message(message).edit(embed=create_top(guild))
-    except:
-        pass
+    except Exception as e:
+        print(e)
     
 ## End of season
 # Cancel permission (5 minutes before cancellation)
@@ -207,13 +207,14 @@ class season_view(discord.ui.View):
         super().__init__(timeout=300)
     @discord.ui.button(label='Отмена', style=discord.ButtonStyle.red)
     async def cancel_reset(self, interaction:discord.Interaction, button:discord.ui.Button):
+        global ready_reset
         ready_reset = False
         await interaction.response.edit_message('Сброс сезона был отменён', view=None)
 
 # Score in context
 @app_commands.context_menu(name='Зал славы')
 async def ctx_glory(interaction:discord.Interaction, user:discord.User):
-    exrank = get_rank(user.id, interaction.guild)#ищет участника в базе
+    exrank = get_rank(user.id, interaction.guild)
     if exrank == False:
         await interaction.response.send_message('Участник не учавствует в рейтинге:confused:', ephemeral=True)
     elif exrank == None:
@@ -258,8 +259,8 @@ class GloryGroup(commands.GroupCog, name="активность", ):
                     restore_season = restore_season[0]
                 print("Сохранённый сезон", restore_season)
                 con.execute('DELETE FROM "glory settings"')
-            except:
-                pass
+            except Exception as e:
+                print(e)
             try:
                 wall_msg = await channel.send(embed=create_top(interaction.guild))
                 con.execute('INSERT INTO "glory settings" ("glory channel", "glory message", "season") VALUES ({channel}, {msg}, {season})'.format(channel = channel.id, msg = wall_msg.id, season = restore_season))#вписать какнал и соо
@@ -302,18 +303,28 @@ class GloryGroup(commands.GroupCog, name="активность", ):
         reason: app_commands.Choice[int],
         count: typing.Optional[int] = None,
     ):
-        if is_gm(interaction.user) == True:
-            # Looking for user in DB
+        try:
+            if not is_gm(interaction.user):
+                await interaction.response.send_message('У Вас нет доступа к этой команде', ephemeral=True)
+                return
+            
+            default_scores = {1: 6, 2: 4, 3: 2, 4: 1, 5: 1, 6: 2, 7: 3, 8: 2}
+            count = count or default_scores.get(reason.value, 0)
+            
             exrank = OzRank(user.id, interaction.guild, action.value, reason.value, count)
-            if exrank == None:
-                await interaction.response.send_message('Участник не учавствует в рейтинге:confused:', ephemeral=True)
-            elif exrank == False:
-                await interaction.response.send_message('Что-то пошло не так:anguished:\nПопробуйте ещё раз', ephemeral=True)
+            if exrank is None:
+                await interaction.response.send_message('Участник не участвует в рейтинге :confused:', ephemeral=True)
+            elif exrank is False:
+                await interaction.response.send_message('Что-то пошло не так :anguished:\nПопробуйте ещё раз.', ephemeral=True)
             else:
                 await upd_wall(self, interaction.guild)
-                await interaction.response.send_message('Изменены баллы {user} {exrank}'.format(user = user.display_name, exrank = exrank))
-        else:
-            await interaction.response.send_message('У Вас нет доступа к этой команде', ephemeral=True)
+                await interaction.response.send_message(
+                    f'Изменены баллы участника {user.display_name} {exrank}'
+                )
+        except Exception as e:
+            print(f"Ошибка: {e}")
+            await interaction.response.send_message('Произошла ошибка при выполнении команды.', ephemeral=True)
+
             
     @app_commands.command(name='добавить', description='Добавить участника в "Зал славы"')
     async def add_member(self, interaction:discord.Interaction, user:discord.Member):
@@ -363,12 +374,17 @@ class GloryGroup(commands.GroupCog, name="активность", ):
             await interaction.response.send_message(embed = rank_embed, ephemeral=True)
 
     @app_commands.command(name='отчёт', description='Запросить таблицу Зала славы')
-    async def glory_report(self, interaction:discord.Interaction):
-        if is_gm(interaction.user) == True:
-            report_path = create_report(interaction)
-            print('Отправка отчёта')
-            with open(report_path, 'rb') as report:
-                await interaction.response.send_message(file=discord.File(report, report_path))
+    async def glory_report(self, interaction: discord.Interaction):
+        if is_gm(interaction.user):
+            try:
+                report_path = create_report(interaction)
+                print('Отправка отчёта')
+                with open(report_path, 'rb') as report:
+                    await interaction.response.send_message(file=discord.File(report, filename=report_path))
+
+            except Exception as e:
+                print(f"Ошибка: {e}")
+                await interaction.response.send_message('Произошла ошибка при создании отчёта.', ephemeral=True)
         else:
             await interaction.response.send_message('У Вас нет доступа к этой команде', ephemeral=True)
 
