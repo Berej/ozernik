@@ -63,7 +63,7 @@ class echo(commands.Cog):
                 else:
                     messages = [item for item in messages if not (item.startswith("<:") and item.endswith(">") and item not in map(str, message.guild.emojis)) and not re.compile(r"<@!?(\d+)>").search(item)]
                     echo = choice_phrase(messages)
-            await message.reply(echo)
+            await message.reply(echo, mention_author=False)
 
 
 async def setup(bot):
