@@ -180,14 +180,27 @@ class topView(discord.ui.View):
 
 ## Report (game hall (hole :D))
 def create_report(interaction):
-    report_path = "Отчёт зал славы {season} ({date}).csv".format(season = sqlite3.connect('base {}.db'.format(interaction.guild.id)).execute('SELECT "season" FROM "glory settings"').fetchone()[0], date = datetime.now().strftime("%d%m%Y%H%M%S"))
-    with open(report_path, 'a') as tab:
+    db_path = 'base {}.db'.format(interaction.guild.id)
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    
+    season = cursor.execute('SELECT "season" FROM "glory settings"').fetchone()[0]
+    
+    report_path = "Отчёт зал славы {season} ({date}).csv".format(season=season, date=datetime.now().strftime("%d%m%Y%H%M%S"))
+    
+    with open(report_path, 'a', encoding='utf-8-sig') as tab:
         tab.write('Участник;Ивенты;Сигеймы;Топ-1;Топ-3;Библиотека;Публикации;Роль за актив;Роль просто так;Сумма сезона;Прошлые сезоны')
-        for row in sqlite3.connect('base {}.db'.format(interaction.guild.id)).execute('SELECT * FROM "rank" ORDER BY "sum" DESC').fetchall():
-            try:
-                tab.write('\n{user} ({id});{event};{sigame};{top1};{top3};{lib};{posts};{roleactive};{rolejust};{sum};{pastseasons}'.format(user = interaction.guild.get_member(row[0]).display_name, id = interaction.guild.get_member(row[0]), event = row[2], sigame = row[3], top1 = row[4], top3 = row[5], lib = row[6], posts = row[7], roleactive = row[8], rolejust = row[9], sum = row[1], pastseasons = row[10]))
-            except:
-                tab.write('\nПотеряный пользователь ({id});{event};{sigame};{top1};{top3};{lib};{posts};{roleactive};{rolejust};{sum};{pastseasons}'.format(id = row[0], event = row[2], sigame = row[3], top1 = row[4], top3 = row[5], lib = row[6], posts = row[7], roleactive = row[8], rolejust = row[9], sum = row[1], pastseasons = row[10]))
+        
+        for row in cursor.execute('SELECT * FROM "rank" ORDER BY "sum" DESC').fetchall():
+            user = interaction.guild.get_member(row[0])
+            if user:
+                user_display = f"{user.display_name} ({user.id})"
+            else:
+                user_display = f"Потерянный пользователь ({row[0]})"
+            
+            tab.write(f"\n{user_display};{row[2]};{row[3]};{row[4]};{row[5]};{row[6]};{row[7]};{row[8]};{row[9]};{row[1]};{row[10]}")
+    conn.close()
+
     return report_path
     
 async def upd_wall(self, guild):
