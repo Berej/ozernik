@@ -6,8 +6,8 @@ import typing
 from datetime import datetime
 import asyncio
 
-glory_mods = [779015800555176006, 725675581881974794, 1296437623761539146, 780422873122603018]
-#glory_group = app_commands.Group(name='активность', description='Работа с "залом славы"')
+fame_mods = [779015800555176006, 725675581881974794, 1296437623761539146, 780422873122603018]
+#fame_group = app_commands.Group(name='активность', description='Работа с "залом славы"')
 
 #Checking and creating DB
 def new_rank_base(guild):
@@ -32,16 +32,16 @@ def is_gm(user):
     if (user.id == 640504347137933334) or (user.id == 685425244051079222): #Albert Vanderboom (electricalsheep)
         return True
     for role in user.roles:
-        if role.id in glory_mods:
+        if role.id in fame_mods:
             return True
 
 ##Leaderboard generator
 def create_top(guild):
     top_embed = discord.Embed(title='Топ Зала славы', color=discord.Colour.red())
     new_rank_base(guild)
-    glory_list = sqlite3.connect('base {}.db'.format(guild.id)).execute('SELECT "uid", "sum", "past seasons" FROM "rank" ORDER BY "sum" DESC LIMIT 25').fetchall()
+    fame_list = sqlite3.connect('base {}.db'.format(guild.id)).execute('SELECT "uid", "sum", "past seasons" FROM "rank" ORDER BY "sum" DESC LIMIT 25').fetchall()
     num = 1
-    for row in glory_list:
+    for row in fame_list:
         if row[1] != 0:
             try:
                 if num > 3:
@@ -131,7 +131,29 @@ def get_rank(uid, guild):
         r = cursor.fetchone()
         con.close
         return r
-    
+
+def member_score(user, interaction):
+    exrank = get_rank(user.id, interaction.guild)#Looking for user in DB
+    if exrank == False:
+        return 'Участник не учавствует в рейтинге:confused:'
+    elif exrank == None:
+        return 'Что-то пошло не так:anguished:\nПопробуйте ещё раз. Если это не помогает - обратитесь к <@685425244051079222>'
+    else:
+        rank_embed = discord.Embed(title='Баллы активности {}'.format(user.display_name), color=discord.Color.random())
+        rank_embed.set_thumbnail(url = user.display_avatar)
+        rank_embed.add_field(name='Баллы в сезоне: {}'.format(exrank[1]), value='\
+* Победы в ивенте: {event}\n\
+* Победы в SIGame: {sigame}\n\
+* Топ-1 недели: {top1}\n\
+* Топ-3 недели: {top3}\n\
+* Посты в библиотеке: {lib}\n\
+* Посты в публикациях: {posts}\n\
+* Кастомки за заслуги: {roleactive}\n\
+* Кастомки "просто так": {rolejust}\n\
+\n\
+*Баллы в прошлах сезонах: {pastseasons}*\n\
+-# Всего баллов: {total}'.format(event = exrank[2], sigame = exrank[3] , top1 = exrank[4], top3 = exrank[5], lib = exrank[6], posts = exrank[7], roleactive = exrank[8], rolejust = exrank[9], pastseasons = exrank[10], total = exrank[1] + exrank[10]))
+    return rank_embed
 ## TOPS
 # top 10
 def top_10(guild):
@@ -180,16 +202,29 @@ class topView(discord.ui.View):
 
 ## Report (game hall (hole :D))
 def create_report(interaction):
-    report_path = "Отчёт зал славы {season} ({date}).csv".format(season = sqlite3.connect('base {}.db'.format(interaction.guild.id)).execute('SELECT "season" FROM "glory settings"').fetchone()[0], date = datetime.now().strftime("%d%m%Y%H%M%S"))
-    with open(report_path, 'a') as tab:
-        tab.write('Участник;Ивенты;Сигеймы;Топ-1;Топ-3;Библиотека;Публикации;Роль за актив;Роль просто так;Сумма сезона;Прошлые сезоны')
-        for row in sqlite3.connect('base {}.db'.format(interaction.guild.id)).execute('SELECT * FROM "rank" ORDER BY "sum" DESC').fetchall():
-            try:
-                tab.write('\n{user} ({id});{event};{sigame};{top1};{top3};{lib};{posts};{roleactive};{rolejust};{sum};{pastseasons}'.format(user = interaction.guild.get_member(row[0]).display_name, id = interaction.guild.get_member(row[0]), event = row[2], sigame = row[3], top1 = row[4], top3 = row[5], lib = row[6], posts = row[7], roleactive = row[8], rolejust = row[9], sum = row[1], pastseasons = row[10]))
-            except:
-                tab.write('\nПотеряный пользователь ({id});{event};{sigame};{top1};{top3};{lib};{posts};{roleactive};{rolejust};{sum};{pastseasons}'.format(id = row[0], event = row[2], sigame = row[3], top1 = row[4], top3 = row[5], lib = row[6], posts = row[7], roleactive = row[8], rolejust = row[9], sum = row[1], pastseasons = row[10]))
-    return report_path
+    db_path = 'base {}.db'.format(interaction.guild.id)
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
     
+    season = cursor.execute('SELECT "season" FROM "glory settings"').fetchone()[0]
+    
+    report_path = "Отчёт зал славы {season} ({date}).csv".format(season=season, date=datetime.now().strftime("%d%m%Y%H%M%S"))
+    
+    with open(report_path, 'a', encoding='utf-8-sig') as tab:
+        tab.write('Участник;Ивенты;Сигеймы;Топ-1;Топ-3;Библиотека;Публикации;Роль за актив;Роль просто так;Сумма сезона;Прошлые сезоны')
+        
+        for row in cursor.execute('SELECT * FROM "rank" ORDER BY "sum" DESC').fetchall():
+            user = interaction.guild.get_member(row[0])
+            if user:
+                user_display = f"{user.display_name} ({user.name} | {user.id})"
+            else:
+                user_display = f"Потерянный пользователь ({row[0]})"
+            
+            tab.write(f"\n{user_display};{row[2]};{row[3]};{row[4]};{row[5]};{row[6]};{row[7]};{row[8]};{row[9]};{row[1]};{row[10]}")
+    conn.close()
+
+    return report_path
+
 async def upd_wall(self, guild):
     try:
         channel = sqlite3.connect('base {}.db'.format(guild.id)).execute('SELECT "glory channel" FROM "glory settings"').fetchone()[0]
@@ -213,30 +248,53 @@ class season_view(discord.ui.View):
 
 # Score in context
 @app_commands.context_menu(name='Зал славы')
-async def ctx_glory(interaction:discord.Interaction, user:discord.User):
-    exrank = get_rank(user.id, interaction.guild)
-    if exrank == False:
-        await interaction.response.send_message('Участник не учавствует в рейтинге:confused:', ephemeral=True)
-    elif exrank == None:
-        await interaction.response.send_message('Что-то пошло не так:anguished:\nПопробуйте ещё раз. Если это не помогает - обратитесь к <@685425244051079222>', ephemeral=True)
+async def ctx_fame(interaction:discord.Interaction, user:discord.User):
+    member_score_embed = member_score(user, interaction)
+    if member_score_embed == discord.Embed:
+        await interaction.response.send_message(embed = member_score_embed, ephemeral=True)
     else:
-        rank_embed = discord.Embed(title='Баллы активности {}'.format(user.display_name), color=discord.Color.random())
-        rank_embed.set_thumbnail(url = user.display_avatar)
-        rank_embed.add_field(name='Баллы в сезоне: {}'.format(exrank[1]), value='\
-* Победы в ивенте: {event}\n\
-* Победы в SIGame: {sigame}\n\
-* Топ-1 недели: {top1}\n\
-* Топ-3 недели: {top3}\n\
-* Посты в библиотеке: {lib}\n\
-* Посты в публикациях: {posts}\n\
-* Кастомки за заслуги: {roleactive}\n\
-* Кастомки "просто так": {rolejust}\n\
-\n\
-*Баллы в прошлах сезонах: {pastseasons}*\n\
--# Всего баллов: {total}'.format(event = exrank[2], sigame = exrank[3] , top1 = exrank[4], top3 = exrank[5], lib = exrank[6], posts = exrank[7], roleactive = exrank[8], rolejust = exrank[9], pastseasons = exrank[10], total = exrank[1] + exrank[10]))
-        await interaction.response.send_message(embed = rank_embed, ephemeral=True)
+        await interaction.response.send_message(member_score_embed, ephemeral=True)
 
-class GloryGroup(commands.GroupCog, name="активность", ):
+# Mod notifications
+# return embed
+acts = {
+    1: '+',
+    2: '-'
+}
+res = {
+    1: 'за победу в ивенте',    # Gold (#FFD700)
+    2: 'за победу в SIGame',    # SteelBlue (#4682B4)
+    3: 'за топ-1 опыта за неделю ', # YellowGreen (#9ACD32)
+    4: 'за топ-3 опыта за неделю',  # DarkGreen (#006400)
+    5: 'за публикацию в "Библиотеке"',    # MediumBlue (#0000CD)
+    6: 'за публикацию в "Публикациях"',    # DarkViolet (#9400D3)
+    7: 'за кастомную роль за заслуги',  # OrangeRed (#FF4500)
+    8: 'за кастомную роль "просто так"',    # Pink (#FFC0CB)
+}
+col = {
+    1: 0xFFD700,
+    2: 0x4682B4,
+    3: 0x9ACD32,
+    4: 0x006400,
+    5: 0x0000CD,
+    6: 0x9400D3,
+    7: 0xFF4500,
+    8: 0xFFC0CB
+}
+
+def Fame_notifications(author, user, guild, action, reason, count):
+    global acts
+    global res
+    global col
+    with open(f'fame_log ({guild.id}).txt', '+a', encoding='utf-8-sig') as fame_log:
+        fame_log.write(f'[{datetime.now()}] - {author.name}\t|\t{user.name} ({user.id})\t ({"+" if action == 1 else "-"}) {count} {res.get(reason, "Неизвестная причина")}\n')
+    note_embed = discord.Embed(color = col.get(reason))
+    note_embed.set_author(name=author.name, icon_url=author.avatar)
+    note_embed.add_field(name=f'{user.display_name} ({user.name})', value=f'{acts.get(action)} **{count}** балла(-ов) **{res.get(reason)}**')
+    note_embed.set_thumbnail(url=user.avatar)
+    return note_embed
+
+class FameGroup(commands.GroupCog, name="активность", ):
     def __init__(self, bot):
         self.bot = bot
         # Init commands group
@@ -247,7 +305,7 @@ class GloryGroup(commands.GroupCog, name="активность", ):
     @app_commands.command(name='запуск', description='Запустить "Зал славы"')
     @app_commands.rename(channel='канал')
     @app_commands.describe(channel='Канал "Зал славы", в котором публикуется таблица лидеров')
-    async def start_glory(self, interaction: discord.Interaction, channel: discord.TextChannel):
+    async def start_fame(self, interaction: discord.Interaction, channel: discord.TextChannel):
         if is_gm(interaction.user) == True:
             con = sqlite3.connect('base {}.db'.format(interaction.guild.id))
             con.execute('''CREATE TABLE IF NOT EXISTS "glory settings" ("glory channel" INTEGER, "glory message" INTEGER, "season" INTEGER NOT NULL DEFAULT 2)''')
@@ -321,6 +379,9 @@ class GloryGroup(commands.GroupCog, name="активность", ):
                 await interaction.response.send_message(
                     f'Изменены баллы участника {user.display_name} {exrank}'
                 )
+                note = Fame_notifications(interaction.user, user, interaction.guild, action.value, reason.value, count)
+                await interaction.guild.get_channel(1189392913092853831).send(embed=note)#1342897615905226842
+
         except Exception as e:
             print(f"Ошибка: {e}")
             await interaction.response.send_message('Произошла ошибка при выполнении команды.', ephemeral=True)
@@ -351,30 +412,14 @@ class GloryGroup(commands.GroupCog, name="активность", ):
     async def uscore(self, interaction: discord.Interaction, user: typing.Optional[discord.User] = None):
         # If the user is not specified, we use the author of the command
         user = user or interaction.user
-        exrank = get_rank(user.id, interaction.guild)#Looking for user in DB
-        if exrank == False:
-            await interaction.response.send_message('Участник не учавствует в рейтинге:confused:', ephemeral=True)
-        elif exrank == None:
-            await interaction.response.send_message('Что-то пошло не так:anguished:\nПопробуйте ещё раз. Если это не помогает - обратитесь к <@685425244051079222>', ephemeral=True)
-        else:
-            rank_embed = discord.Embed(title='Баллы активности {}'.format(user.display_name), color=discord.Color.random())
-            rank_embed.set_thumbnail(url = user.display_avatar)
-            rank_embed.add_field(name='Баллы в сезоне: {}'.format(exrank[1]), value='\
-* Победы в ивенте: {event}\n\
-* Победы в SIGame: {sigame}\n\
-* Топ-1 недели: {top1}\n\
-* Топ-3 недели: {top3}\n\
-* Посты в библиотеке: {lib}\n\
-* Посты в публикациях: {posts}\n\
-* Кастомки за заслуги: {roleactive}\n\
-* Кастомки "просто так": {rolejust}\n\
-\n\
-*Баллы в прошлах сезонах: {pastseasons}*\n\
--# Всего баллов: {total}'.format(event = exrank[2], sigame = exrank[3] , top1 = exrank[4], top3 = exrank[5], lib = exrank[6], posts = exrank[7], roleactive = exrank[8], rolejust = exrank[9], pastseasons = exrank[10], total = exrank[1] + exrank[10]))
-            await interaction.response.send_message(embed = rank_embed, ephemeral=True)
+        member_score_embed = member_score(user, interaction)
+        try:
+            await interaction.response.send_message(embed = member_score_embed, ephemeral=True)
+        except:
+            await interaction.response.send_message(member_score_embed, ephemeral=True)
 
     @app_commands.command(name='отчёт', description='Запросить таблицу Зала славы')
-    async def glory_report(self, interaction: discord.Interaction):
+    async def fame_report(self, interaction: discord.Interaction):
         if is_gm(interaction.user):
             try:
                 report_path = create_report(interaction)
@@ -412,4 +457,4 @@ class GloryGroup(commands.GroupCog, name="активность", ):
             await interaction.response.send_message('У Вас нет доступа к этой команде', ephemeral=True)
 # Registering a group in the command tree
 async def setup(bot):
-    await bot.add_cog(GloryGroup(bot))
+    await bot.add_cog(FameGroup(bot))
