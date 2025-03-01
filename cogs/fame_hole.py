@@ -380,7 +380,7 @@ class FameGroup(commands.GroupCog, name="активность", ):
                     f'Изменены баллы участника {user.display_name} {exrank}'
                 )
                 note = Fame_notifications(interaction.user, user, interaction.guild, action.value, reason.value, count)
-                await interaction.guild.get_channel(1189392913092853831).send(embed=note)#1342897615905226842
+                await interaction.guild.get_channel(1342897615905226842).send(embed=note)
 
         except Exception as e:
             print(f"Ошибка: {e}")
