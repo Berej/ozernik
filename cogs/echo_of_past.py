@@ -29,7 +29,7 @@ class echo(commands.Cog):
             async with message.channel.typing():
                 echo = ''
                 messages = [message for message in [message.content async for message in self.bot.get_channel(722824270207516796).history(limit=1000) if message.author.bot == False] if (2 <= len(message) <= 50)]
-                sentence = int(random.randint(1, 15))
+                sentence = int(random.randint(1, 20))
                 if sentence == 1:
                     echo = random.choice([
                     'https://tenor.com/view/sleepy-kitty-sleepy-cat-sleepy-sad-sad-cat-gif-13665137351453051889',
@@ -63,7 +63,7 @@ class echo(commands.Cog):
                 else:
                     messages = [item for item in messages if not (item.startswith("<:") and item.endswith(">") and item not in map(str, message.guild.emojis)) and not re.compile(r"<@!?(\d+)>").search(item)]
                     echo = choice_phrase(messages)
-            await message.reply(echo)
+            await message.reply(echo, mention_author=False)
 
 
 async def setup(bot):
