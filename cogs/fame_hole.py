@@ -232,6 +232,7 @@ def create_report(interaction):
     report_path = "Отчёт зал славы {season} ({date}).csv".format(season=season, date=datetime.now().strftime("%d%m%Y%H%M%S"))
     
     with open(report_path, 'a', encoding='utf-8-sig') as tab:
+        # Здесь изменена строка для записи заголовка с учётом всех новых данных
         tab.write('Участник;Ивенты;Сигеймы;Топ-1;Топ-3;Библиотека;Публикации;Роль за актив;Роль просто так;Победа в фмафеи;Хайлайтер фмафеи;Проведение партии в фмафеи;Сумма сезона;Прошлые сезоны')
         
         for row in cursor.execute('SELECT * FROM "rank" ORDER BY "sum" DESC').fetchall():
@@ -241,7 +242,9 @@ def create_report(interaction):
             else:
                 user_display = f"Потерянный пользователь ({row[0]})"
             
+            # Записываем данные в CSV, включая все обновлённые столбцы
             tab.write(f"\n{user_display};{row[2]};{row[3]};{row[4]};{row[5]};{row[6]};{row[7]};{row[8]};{row[9]};{row[10]};{row[11]};{row[12]};{row[1]};{row[13]}")
+    
     conn.close()
 
     return report_path
