@@ -9,7 +9,7 @@ protected_channels = [1150378018771050537, #Создать [+]
                         1181442425881894972, #afk
                         ]
 
-ALLOWED_ROLES = [1102221898793881710, 1283467964884189286]  # list of allowed roles (IDs)
+ALLOWED_ROLES = [1102221898793881710, 1283467964884189286, 1398937618527293510]  # list of allowed roles (IDs)
 
 class voice_rename_cog(commands.Cog):
     def __init__(self, bot):
@@ -26,30 +26,34 @@ class voice_rename_cog(commands.Cog):
     @app_commands.command(name='rename', description='Меняет название голосового канала')
     @app_commands.rename(new_name = 'название')
     @app_commands.describe(new_name = 'Новое название канала')
+    @app_commands.guilds(1324396791965417513) 
     async def rename_voice(self, interaction: discord.Interaction, new_name: str):
-        # Get user (command call owner)
-        user = interaction.user
+        try:
+            # Get user (command call owner)
+            user = interaction.user
 
-        # Check if user have ALLOWED_ROLES
-        if not any(discord.utils.get(user.roles, id=role_id) for role_id in ALLOWED_ROLES):
-            await interaction.response.send_message("Вы не имеете нужной роли.", ephemeral=True)
-            return
+            # Check if user have ALLOWED_ROLES
+            if not any(discord.utils.get(user.roles, id=role_id) for role_id in ALLOWED_ROLES):
+                await interaction.response.send_message("Вы не имеете нужной роли.", ephemeral=True)
+                return
 
-        # Check if user is in voice
-        if user.voice is None or user.voice.channel is None:
-            await interaction.response.send_message("Вы не находитесь в голосовом канале.", ephemeral=True)
-            return
+            # Check if user is in voice
+            if user.voice is None or user.voice.channel is None:
+                await interaction.response.send_message("Вы не находитесь в голосовом канале.", ephemeral=True)
+                return
 
-        voice_channel = user.voice.channel
+            voice_channel = user.voice.channel
 
-        # Check if user is in protected_channels
-        if voice_channel.id in protected_channels:
-            await interaction.response.send_message("Название этого канала нельзя изменить.", ephemeral=True)
-            return
+            # Check if user is in protected_channels
+            if voice_channel.id in protected_channels:
+                await interaction.response.send_message("Название этого канала нельзя изменить.", ephemeral=True)
+                return
 
-        # Rename voice
-        await voice_channel.edit(name=new_name)
-        await interaction.response.send_message('{user} меняет название канала на **{new_name}**'.format(user = interaction.user.display_name, new_name = new_name))
-
+            # Rename voice
+            await voice_channel.edit(name=new_name)
+            await interaction.response.send_message('{user} меняет название канала на **{new_name}**'.format(user = interaction.user.display_name, new_name = new_name))
+        except Exception as e:
+            text = e.args
+            print('Rename error: {text}')
 async def setup(bot):
     await bot.add_cog(voice_rename_cog(bot))

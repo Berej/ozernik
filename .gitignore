@@ -2,4 +2,7 @@ build/*
 .venv
 cogs/__pycache__/*
 base*
+ranks.db
 token.txt
+test
+test/*

@@ -10,10 +10,11 @@ intents.members = True
 
 TESTSERVER_ID = 1324396791965417513
 OZERNIK_ID = 722824269683359877
+GUILD_ID = 0 # initialization
 
 
 # Don't forget to change DEBUG_MODE while working, dear developers :)
-DEBUG_MODE = False
+DEBUG_MODE = True
 
 if DEBUG_MODE:
     GUILD_ID = TESTSERVER_ID 
@@ -43,10 +44,13 @@ async def on_ready():
     print('Login: {}'.format(bot.user))
 
     await load_extensions()  # Call cogs loading
-
     guild = discord.Object(id=GUILD_ID)
 
-    await bot.tree.sync(guild=guild)
+    # Чистим глобальные команды (если вдруг остались от прошлого запуска)
+    await bot.tree.sync()  # пустой sync — это глобальная синхронизация
+    await bot.tree.sync(guild=guild)  # локальная синхронизация
+
+
     print('Установлен часовой пояс:', moscow_tz)
     print('Всё готово!')
 

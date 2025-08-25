@@ -41,13 +41,13 @@ This bot is specifically designed for the Озёрники server and may not fu
    - On Windows:
 
      ```bash
-     venv\Scripts\activate
+     .venv\Scripts\activate
      ```
 
    - On Unix or MacOS:
 
      ```bash
-     source venv/bin/activate
+     source .venv/bin/activate
      ```
 
 5. **Install the required packages**:
@@ -56,9 +56,15 @@ This bot is specifically designed for the Озёрники server and may not fu
    pip install -r requirements.txt
    ```
 
+   or
+
+   ```bash
+   python3 -m pip install -r requirements.txt
+   ```
+
 6. **Configure the bot**:
 
-   - Create `token.txt` and place your bot token
+   - Create `token.txt` and place your bot token!
 7. **Run the bot**:
 
    ```bash
