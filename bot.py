@@ -1,26 +1,17 @@
+# main.py
 import discord
 from discord.ext import commands
 from datetime import timedelta, timezone
 import os
 
+import botconfig  # наш новый конфиг
 
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 
-TESTSERVER_ID = 1324396791965417513
-OZERNIK_ID = 722824269683359877
-GUILD_ID = 0 # initialization
-
-
-# Don't forget to change DEBUG_MODE while working, dear developers :)
-DEBUG_MODE = True
-
-if DEBUG_MODE:
-    GUILD_ID = TESTSERVER_ID 
-else:
-    GUILD_ID = OZERNIK_ID
-
+# Используем GUILD из config (целое число)
+GUILD_ID = botconfig.GUILD
 
 bot = commands.Bot(command_prefix='.', intents=intents)
 
@@ -47,25 +38,16 @@ async def on_ready():
     guild = discord.Object(id=GUILD_ID)
 
     # Чистим глобальные команды (если вдруг остались от прошлого запуска)
+    # Сначала глобальная синхронизация, затем локальная — как у тебя было
     await bot.tree.sync()  # пустой sync — это глобальная синхронизация
     await bot.tree.sync(guild=guild)  # локальная синхронизация
-
 
     print('Установлен часовой пояс:', moscow_tz)
     print('Всё готово!')
 
 
 async def main():
-    # Loading token from files
-    try:
-        with open("token.txt", "r") as token_file:
-            token = token_file.read().strip()  # reading token and clearing from spaces
-    except FileNotFoundError:
-        print("Файл token.txt не найден. Убедитесь, что он существует и содержит токен.")
-        return
-    except Exception as e:
-        print(f"Ошибка при чтении файла с токеном: {e}")
-        return
+    token = botconfig.TOKEN
 
     async with bot:
         await bot.start(token)

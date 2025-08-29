@@ -11,8 +11,10 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
+import botconfig
+
 # ====== Настройки ======
-GUILD = 1324396791965417513  # edit ID then debugging
+GUILD_ID = botconfig.GUILD
 DB_PATH = "ranks.db"
 LOG_CHANNEL_ID = 1409197452954828990  # log channel
 LOG_COLOR = 0x2F3136 # Color for embed messages on log channel
@@ -84,7 +86,7 @@ def fame_note_embed(author: discord.User, target: discord.User, action: int, rea
 
 class FameGroup(commands.Cog):
     def __init__(self, bot: commands.Bot):
-        print(f'Зал славы запущен в гильдии: {GUILD}')
+        print(f'Зал славы запущен в гильдии: {GUILD_ID}')
         self.bot = bot
         self._lock = asyncio.Lock()
         # Init db async
@@ -256,7 +258,7 @@ class FameGroup(commands.Cog):
 
     # ---------------- Helper: ensure command called in correct guild ----------------
     async def _check_guild(self, interaction: discord.Interaction) -> bool:
-        if interaction.guild is None or interaction.guild.id != GUILD:
+        if interaction.guild is None or interaction.guild.id != GUILD_ID:
             try:
                 await interaction.response.send_message('Команда доступна только на основном сервере.', ephemeral=True)
             except Exception:
@@ -269,7 +271,7 @@ class FameGroup(commands.Cog):
     @app_commands.command(name='startfamehall', description='Запустить "Зал славы"')
     @app_commands.rename(channel='канал')
     @app_commands.describe(channel='Канал "Зал славы", в котором публикуется таблица лидеров')
-    @app_commands.guilds(GUILD)
+    @app_commands.guilds(GUILD_ID)
     async def start_fame(self, interaction: discord.Interaction, channel: discord.TextChannel):
         # проверка гильдии + права
         if not await self._check_guild(interaction):
@@ -308,7 +310,7 @@ class FameGroup(commands.Cog):
     @app_commands.command(name='add', description='Добавить указанное количество баллов участнику')
     @app_commands.rename(user="участник", amount="сумма", reason="причина")
     @app_commands.describe(user="Участник, которому нужно добавить баллы", amount="Сколько баллов добавить (целое положительное число)", reason="Краткая причина (текст) для логов")
-    @app_commands.guilds(GUILD) 
+    @app_commands.guilds(GUILD_ID) 
     async def add(self, interaction: discord.Interaction, user: discord.User, amount: int, reason: str):
         if not await self._check_guild(interaction):
             return
@@ -341,7 +343,7 @@ class FameGroup(commands.Cog):
     @app_commands.command(name='rem', description='Отнять указанное количество баллов у участника')
     @app_commands.rename(user="участник", amount="сумма", reason="причина")
     @app_commands.describe(user="Участник, у которого нужно отнять баллы", amount="Сколько баллов отнять (целое положительное число)", reason="Краткая причина (текст) для логов")
-    @app_commands.guilds(GUILD) 
+    @app_commands.guilds(GUILD_ID) 
     async def rem(self, interaction: discord.Interaction, user: discord.User, amount: int, reason: str):
         if not await self._check_guild(interaction):
             return
@@ -371,7 +373,7 @@ class FameGroup(commands.Cog):
 
     # ---------------- other slash-commands ----------------
     @app_commands.command(name='useradd', description='Добавить участника в "Зал славы" (создать запись)')
-    @app_commands.guilds(GUILD) 
+    @app_commands.guilds(GUILD_ID) 
     async def add_member(self, interaction: discord.Interaction, user: discord.Member):
         # TODO проверка если добавляемый пользователь бот. Если бот, эфемерная ошибка
         if not await self._check_guild(interaction):
@@ -387,7 +389,7 @@ class FameGroup(commands.Cog):
             await interaction.response.send_message('Произошла ошибка при добавлении участника.', ephemeral=True)
 
     @app_commands.command(name='top', description='Топ зала славы')
-    @app_commands.guilds(GUILD) 
+    @app_commands.guilds(GUILD_ID) 
     async def topscore(self, interaction: discord.Interaction):
         if not await self._check_guild(interaction):
             return
@@ -397,7 +399,7 @@ class FameGroup(commands.Cog):
     @app_commands.command(name='score', description='Показывает баллы участника в зале славы')
     @app_commands.rename(user='озёрник')
     @app_commands.describe(user='Озёрник, баллы которого Вы хотите узнать')
-    @app_commands.guilds(GUILD) 
+    @app_commands.guilds(GUILD_ID) 
     async def uscore(self, interaction: discord.Interaction, user: Optional[discord.User] = None):
         if not await self._check_guild(interaction):
             return
@@ -417,7 +419,7 @@ class FameGroup(commands.Cog):
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @app_commands.command(name='report', description='Запросить таблицу Зала славы')
-    @app_commands.guilds(GUILD) 
+    @app_commands.guilds(GUILD_ID) 
     async def fame_report(self, interaction: discord.Interaction):
         if not await self._check_guild(interaction):
             return
@@ -436,7 +438,7 @@ class FameGroup(commands.Cog):
             await interaction.response.send_message('Произошла ошибка при создании отчёта.', ephemeral=True)
 
     @app_commands.command(name='reset', description='Завершить сезон (немедленно)')
-    @app_commands.guilds(GUILD) 
+    @app_commands.guilds(GUILD_ID) 
     async def reset_season(self, interaction: discord.Interaction):
         if not await self._check_guild(interaction):
             return
@@ -451,13 +453,13 @@ class FameGroup(commands.Cog):
             except Exception:
                 logger.exception("Не удалось удалить временный файл отчёта после отправки")
             await self.inc_past_seasons_and_reset()
-            guild = self.bot.get_guild(GUILD) or interaction.guild
+            guild = self.bot.get_guild(GUILD_ID) or interaction.guild
             if guild:
                 await self.upd_wall(guild)
             log_ch = self.bot.get_channel(LOG_CHANNEL_ID)
             if log_ch:
                 try:
-                    await log_ch.send(f"Сезон немедленно сброшен модератором {interaction.user} в гильдии {GUILD}")
+                    await log_ch.send(f"Сезон немедленно сброшен модератором {interaction.user} в гильдии {GUILD_ID}")
                 except Exception:
                     logger.exception("Не удалось отправить сообщение в лог-канал после сброса")
             logger.info("Season reset executed (past_seasons preserved)")
