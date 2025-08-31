@@ -17,7 +17,7 @@ def _create_template(path: Path) -> None:
         with path.open("w", encoding="utf-8") as f:
             json.dump(DEFAULT_TEMPLATE, f, indent=4, ensure_ascii=False)
     except Exception as e:
-        print(f"Не удалось создать {path}: {e}")
+        print(f"Failed to create {path}: {e}")
         sys.exit(1)
 
 def _load_json(path: Path) -> Dict[str, Any]:
@@ -25,51 +25,50 @@ def _load_json(path: Path) -> Dict[str, Any]:
         with path.open("r", encoding="utf-8") as f:
             return json.load(f)
     except json.JSONDecodeError as e:
-        print(f"Ошибка синтаксиса JSON в {path}: {e}")
+        print(f"Syntax Error JSON in {path}: {e}")
         sys.exit(1)
     except Exception as e:
-        print(f"Ошибка при чтении {path}: {e}")
+        print(f"Reading Error {path}: {e}")
         sys.exit(1)
 
-# Если файла нет — создаём шаблон и просим заполнить
+# If the config file does not exist — create the template and prompt the user to fill it
 if not CONFIG_PATH.exists():
-    print(f"{CONFIG_PATH} не найден. Создаю шаблон...")
+    print(f"{CONFIG_PATH} file not found. Creating template...")
     _create_template(CONFIG_PATH)
     print(
-        f"Файл {CONFIG_PATH.name} создан. Открой его и заполни поля:\n"
-        '  "TOKEN": "тут_токен_бота",\n'
+        f"File {CONFIG_PATH.name} created. Open and fill with your data:\n"
+        '  "TOKEN": "your_token",\n'
         '  "GUILD": 123456789012345678\n\n'
-        "После заполнения перезапусти бота."
+        "Restart your bot."
     )
-    # Чтобы бот не запустился с пустой конфигурацией — завершаем программу
+    # Prevent the bot from running with an empty configuration — exit now
     sys.exit(0)
 
 _data = _load_json(CONFIG_PATH)
 
-# Позволяем для гибкости переопределять через переменные окружения
+# Allow overriding via environment variables for flexibility
 TOKEN = os.getenv("DISCORD_TOKEN", _data.get("TOKEN", "")).strip()
-# GUILD может быть передан в окружении как строка — пробуем привести к int
+# GUILD can be provided via environment as a string — try to convert it to int
 _guild_env = os.getenv("GUILD_ID")
 if _guild_env is not None:
     try:
         GUILD = int(_guild_env)
     except ValueError:
-        print("Переменная окружения GUILD_ID должна быть числом (id гильдии).")
+        print("Variable GUILD_ID need to an integer (guild id).")
         sys.exit(1)
 else:
-    # читаем из файла; если что-то не так — установим 0 и дальше проверим
+    # Read from the file; if something is wrong set 0 and validate later
     try:
         GUILD = int(_data.get("GUILD", 0))
     except (TypeError, ValueError):
         GUILD = 0
 
-# Проверяем на валидность — если токен пустой или guld == 0 -> просим заполнить и выходим
+# Validate: if token is empty or GUILD == 0 -> ask to fill the file and exit
 if not TOKEN or not GUILD:
     print(
-        "Конфигурация неполная.\n"
-        f"Проверь {CONFIG_PATH} и заполните поля:\n"
-        '  "TOKEN": "тут_токен_бота",\n'
+        "Config incomplete data.\n"
+        f"Check {CONFIG_PATH} and fill with your data:\n"
+        '  "TOKEN": "your_token",\n'
         '  "GUILD": 123456789012345678\n\n'
-        "Альтернатива: используй переменные окружения DISCORD_TOKEN и GUILD_ID."
     )
     sys.exit(1)

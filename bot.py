@@ -4,13 +4,13 @@ from discord.ext import commands
 from datetime import timedelta, timezone
 import os
 
-import botconfig  # наш новый конфиг
+import botconfig
 
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 
-# Используем GUILD из config (целое число)
+# importing data from config.json
 GUILD_ID = botconfig.GUILD
 
 bot = commands.Bot(command_prefix='.', intents=intents)
@@ -23,12 +23,12 @@ cogs_folder = 'cogs'  # cogs directory name
 
 async def load_extensions():
     for filename in os.listdir(cogs_folder):
-        if filename.endswith(".py"):  # searching .py files
+        if filename.endswith(".py"):  # Looking for .py files
             try:
                 await bot.load_extension(f"{cogs_folder}.{filename[:-3]}")
-                print(f"[{filename}] Загружен успешно!")
+                print(f"[{filename}] Cogs loaded successful!")
             except Exception as e:
-                print(f"[{filename}] Ошибка при загрузке: {e}")
+                print(f"[{filename}] Error on cogs load: {e}")
 
 @bot.event
 async def on_ready():
@@ -37,13 +37,14 @@ async def on_ready():
     await load_extensions()  # Call cogs loading
     guild = discord.Object(id=GUILD_ID)
 
-    # Чистим глобальные команды (если вдруг остались от прошлого запуска)
-    # Сначала глобальная синхронизация, затем локальная — как у тебя было
-    await bot.tree.sync()  # пустой sync — это глобальная синхронизация
-    await bot.tree.sync(guild=guild)  # локальная синхронизация
 
-    print('Установлен часовой пояс:', moscow_tz)
-    print('Всё готово!')
+    # Clearing global slash-commands
+    # Global sync then local sync only for guild
+    await bot.tree.sync()  # empy sync to delete global commands
+    await bot.tree.sync(guild=guild)  # local sync
+
+    print('Timezone setup:', moscow_tz)
+    print('Ready!')
 
 
 async def main():
