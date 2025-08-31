@@ -13,15 +13,15 @@ from discord.ext import commands
 
 import botconfig
 
-# ====== Настройки ======
+# ====== Settings ======
 GUILD_ID = botconfig.GUILD
 DB_PATH = "ranks.db"
 LOG_CHANNEL_ID = 1409197452954828990  # log channel
-LOG_COLOR = 0x2F3136 # Color for embed messages on log channel
-# mod roles
+LOG_COLOR = 0x2F3136  # Color for embed messages on log channel
+# moderator roles
 FAME_MODS = {779015800555176006, 725675581881974794, 1296437623761539146, 780422873122603018, 1398937618527293510}
 
-# Directory fo refference
+# Directory for reference
 REASON_TO_POINTS = {
     1: 6,   # event
     2: 4,   # sigame
@@ -54,7 +54,7 @@ logger = logging.getLogger(__name__)
 
 
 def is_gm(user: discord.abc.User) -> bool:
-    """Проверка модератора (по ролям + пара статических id)."""
+    """Check if a user is a moderator (by roles + two static ids)."""
     if user.id in {640504347137933334, 685425244051079222}:
         return True
     if hasattr(user, "roles"):
@@ -66,9 +66,9 @@ def is_gm(user: discord.abc.User) -> bool:
 
 def fame_note_embed(author: discord.User, target: discord.User, action: int, reason_text: str, count: int) -> discord.Embed:
     """
-    Формирование embed'а для логов изменений очков.
+    Build an embed for logging score changes.
     action: 1 = plus, 2 = minus
-    reason_text: строка, введённая модератором
+    reason_text: string provided by the moderator
     """
     note = discord.Embed(color=LOG_COLOR)
     note.set_author(name=author.name, icon_url=author.avatar.url if hasattr(author, "avatar") and author.avatar else None)
@@ -89,14 +89,14 @@ class FameGroup(commands.Cog):
         print(f'Зал славы запущен в гильдии: {GUILD_ID}')
         self.bot = bot
         self._lock = asyncio.Lock()
-        # Init db async
+        # Initialize DB asynchronously
         self._db_init_task = bot.loop.create_task(self._init_db())
 
     async def _init_db(self):
         """
-        Инициализация базы для нового проекта:
-        таблица rank: uid, score, past_seasons
-        таблица glory_settings: single-row (id=1)
+        Initialize the database for the project:
+        table rank: uid, score, past_seasons
+        table glory_settings: single-row (id=1)
         """
         async with aiosqlite.connect(DB_PATH) as db:
             await db.execute("""
@@ -133,9 +133,9 @@ class FameGroup(commands.Cog):
 
     async def modify_score(self, uid: int, delta: int):
         """
-        Добавляет delta (может быть отрицательным) к score.
-        Возвращает dict с old_score/new_score.
-        Не допускает отрицательного итогового score.
+        Add delta (can be negative) to score.
+        Returns a dict with old_score/new_score.
+        Prevents resulting score from going below zero.
         """
         async with self._lock:
             async with aiosqlite.connect(DB_PATH) as db:
@@ -177,7 +177,7 @@ class FameGroup(commands.Cog):
 
     async def inc_past_seasons_and_reset(self):
         """
-        Перенос сезонных score в past_seasons и обнуление score.
+        Move seasonal scores into past_seasons and reset current scores.
         """
         async with self._lock:
             async with aiosqlite.connect(DB_PATH) as db:
@@ -189,8 +189,8 @@ class FameGroup(commands.Cog):
     # ---------------- Embeds / reports ----------------
     async def create_top_embed(self, guild: discord.Guild, limit: int = 25, viewer: Optional[discord.User] = None) -> discord.Embed:
         """
-        Формирует embed топа. Если viewer передан — дописывает его/ее баллы в конце.
-        Показывает score, past_seasons и сумму.
+        Build the hall-of-fame top embed. If viewer is provided — append their scores at the end.
+        Shows season score, past_seasons and the total.
         """
         embed = discord.Embed(title='Топ Зала славы', color=discord.Color.red())
         rows = await self.top_n(n=limit)
@@ -230,7 +230,7 @@ class FameGroup(commands.Cog):
         return embed
 
     async def create_report_file(self, guild: discord.Guild) -> str:
-        """Генерация CSV-отчёта (uid, score, past_seasons)."""
+        """Generate a CSV report (uid, score, past_seasons)."""
         rows = await self._get_all_ranks()
         settings = await self.get_glory_settings()
         season = settings["season"] if settings else 1
@@ -265,7 +265,7 @@ class FameGroup(commands.Cog):
                 pass
             return False
         return True
-    
+
     # --------------- Init fame hall slash command -----------------------
 
     @app_commands.command(name='startfamehall', description='Запустить "Зал славы"')
@@ -273,28 +273,28 @@ class FameGroup(commands.Cog):
     @app_commands.describe(channel='Канал "Зал славы", в котором публикуется таблица лидеров')
     @app_commands.guilds(GUILD_ID)
     async def start_fame(self, interaction: discord.Interaction, channel: discord.TextChannel):
-        # проверка гильдии + права
+        # check guild + permissions
         if not await self._check_guild(interaction):
             return
         if not is_gm(interaction.user):
             await interaction.response.send_message('У Вас нет доступа к этой команде', ephemeral=True)
             return
 
-        # канал должен быть на том же сервере
+        # the channel must be on the same server
         if channel.guild is None or channel.guild.id != interaction.guild.id:
             await interaction.response.send_message('Укажите канал этого сервера.', ephemeral=True)
             return
 
-        # получаем текущий сезон (если есть) — иначе 1
+        # get current season (if exists) — otherwise 1
         settings = await self.get_glory_settings()
         season = settings["season"] if settings else 1
 
         try:
-            # создаём embed и отправляем сообщение-стену
+            # build embed and send the wall message
             top_embed = await self.create_top_embed(interaction.guild, limit=25, viewer=None)
             wall_msg = await channel.send(embed=top_embed)
 
-            # сохраняем настройки (канал + id сообщения + сезон)
+            # save settings (channel + message id + season)
             await self.set_glory_settings(channel.id, wall_msg.id, season)
 
             await interaction.response.send_message(f'Топ запущен: {wall_msg.jump_url}', ephemeral=True)
@@ -305,12 +305,11 @@ class FameGroup(commands.Cog):
             except Exception:
                 pass
 
-
     # ---------------- New moderation commands: /add & /rem ----------------
     @app_commands.command(name='add', description='Добавить указанное количество баллов участнику')
     @app_commands.rename(user="участник", amount="сумма", reason="причина")
     @app_commands.describe(user="Участник, которому нужно добавить баллы", amount="Сколько баллов добавить (целое положительное число)", reason="Краткая причина (текст) для логов")
-    @app_commands.guilds(GUILD_ID) 
+    @app_commands.guilds(GUILD_ID)
     async def add(self, interaction: discord.Interaction, user: discord.User, amount: int, reason: str):
         if not await self._check_guild(interaction):
             return
@@ -320,7 +319,19 @@ class FameGroup(commands.Cog):
         if amount <= 0:
             await interaction.response.send_message('Сумма должна быть положительным целым числом.', ephemeral=True)
             return
-        # reason — manyalle entered string
+        if amount > 12:
+            await interaction.response.send_message('Сумма должна быть в разумном диапазоне <=12', ephemeral=True)
+            return
+
+        # Ensure the user already exists in the DB; require /useradd otherwise
+        row = await self.get_member_row(user.id)
+        if row is None:
+            await interaction.response.send_message(
+                'Пользователь отсутствует в базе. Сначала используйте команду /useradd, чтобы создать запись.', ephemeral=True
+            )
+            return
+
+        # reason — manually entered string
         try:
             res = await self.modify_score(user.id, delta=amount)
             self.bot.loop.create_task(self.upd_wall(interaction.guild))
@@ -340,10 +351,11 @@ class FameGroup(commands.Cog):
             logger.exception("Ошибка в команде add")
             await interaction.response.send_message('Произошла ошибка при добавлении баллов.', ephemeral=True)
 
+
     @app_commands.command(name='rem', description='Отнять указанное количество баллов у участника')
     @app_commands.rename(user="участник", amount="сумма", reason="причина")
     @app_commands.describe(user="Участник, у которого нужно отнять баллы", amount="Сколько баллов отнять (целое положительное число)", reason="Краткая причина (текст) для логов")
-    @app_commands.guilds(GUILD_ID) 
+    @app_commands.guilds(GUILD_ID)
     async def rem(self, interaction: discord.Interaction, user: discord.User, amount: int, reason: str):
         if not await self._check_guild(interaction):
             return
@@ -353,9 +365,21 @@ class FameGroup(commands.Cog):
         if amount <= 0:
             await interaction.response.send_message('Сумма должна быть положительным целым числом.', ephemeral=True)
             return
+        if amount > 12:
+            await interaction.response.send_message('Сумма должна быть в разумном диапазоне <=12', ephemeral=True)
+            return
+
+        # Require that the user exists in DB before removing points
+        row = await self.get_member_row(user.id)
+        if row is None:
+            await interaction.response.send_message(
+                'Пользователь отсутствует в базе. Сначала используйте команду /useradd, чтобы создать запись.', ephemeral=True
+            )
+            return
+
         try:
             res = await self.modify_score(user.id, delta=-amount)
-            self.bot.loop.create_task(self.upd_wall(interaction.guild))
+            self.bot.loop.create_task(self.upd_wall(interaction.guild))  # updating wall
             await interaction.response.send_message(
                 f'У {getattr(user, "display_name", getattr(user, "name", str(user)))} снято {amount} баллов: {res["old_score"]} -> {res["new_score"]}',
                 ephemeral=True
@@ -371,11 +395,15 @@ class FameGroup(commands.Cog):
             logger.exception("Ошибка в команде rem")
             await interaction.response.send_message('Произошла ошибка при снятии баллов.', ephemeral=True)
 
+
     # ---------------- other slash-commands ----------------
-    @app_commands.command(name='useradd', description='Добавить участника в "Зал славы" (создать запись)')
-    @app_commands.guilds(GUILD_ID) 
+    @app_commands.command(name='useradd', description='Добавить участника в "Зал Славы" (создать запись)')
+    @app_commands.guilds(GUILD_ID)
     async def add_member(self, interaction: discord.Interaction, user: discord.Member):
-        # TODO проверка если добавляемый пользователь бот. Если бот, эфемерная ошибка
+        # TODO: check if the added user is a bot. If so, respond with ephemeral error.
+        if user.bot:
+            await interaction.response.send_message('Вы не можете добавить бота в Зал Славы', ephemeral=True)
+            return
         if not await self._check_guild(interaction):
             return
         if not is_gm(interaction.user):
@@ -389,7 +417,7 @@ class FameGroup(commands.Cog):
             await interaction.response.send_message('Произошла ошибка при добавлении участника.', ephemeral=True)
 
     @app_commands.command(name='top', description='Топ зала славы')
-    @app_commands.guilds(GUILD_ID) 
+    @app_commands.guilds(GUILD_ID)
     async def topscore(self, interaction: discord.Interaction):
         if not await self._check_guild(interaction):
             return
@@ -399,7 +427,7 @@ class FameGroup(commands.Cog):
     @app_commands.command(name='score', description='Показывает баллы участника в зале славы')
     @app_commands.rename(user='озёрник')
     @app_commands.describe(user='Озёрник, баллы которого Вы хотите узнать')
-    @app_commands.guilds(GUILD_ID) 
+    @app_commands.guilds(GUILD_ID)
     async def uscore(self, interaction: discord.Interaction, user: Optional[discord.User] = None):
         if not await self._check_guild(interaction):
             return
@@ -419,7 +447,7 @@ class FameGroup(commands.Cog):
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @app_commands.command(name='report', description='Запросить таблицу Зала славы')
-    @app_commands.guilds(GUILD_ID) 
+    @app_commands.guilds(GUILD_ID)
     async def fame_report(self, interaction: discord.Interaction):
         if not await self._check_guild(interaction):
             return
@@ -438,7 +466,7 @@ class FameGroup(commands.Cog):
             await interaction.response.send_message('Произошла ошибка при создании отчёта.', ephemeral=True)
 
     @app_commands.command(name='reset', description='Завершить сезон (немедленно)')
-    @app_commands.guilds(GUILD_ID) 
+    @app_commands.guilds(GUILD_ID)
     async def reset_season(self, interaction: discord.Interaction):
         if not await self._check_guild(interaction):
             return
@@ -471,7 +499,7 @@ class FameGroup(commands.Cog):
                 pass
 
     async def upd_wall(self, guild: discord.Guild):
-        """Обновляет закреплённое сообщение (стену) лидеров если оно настроено."""
+        """Update the pinned hall-of-fame wall message if configured."""
         try:
             settings = await self.get_glory_settings()
             if not settings:
