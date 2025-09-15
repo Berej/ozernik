@@ -11,10 +11,10 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-import botconfig
+import config
 
 # ====== Settings ======
-GUILD_ID = botconfig.GUILD
+GUILD_ID = config.GUILD
 DB_PATH = "ranks.db"
 LOG_CHANNEL_ID = 1409197452954828990  # log channel
 LOG_COLOR = 0x2F3136  # Color for embed messages on log channel

@@ -4,14 +4,14 @@ from discord.ext import commands
 from datetime import timedelta, timezone
 import os
 
-import botconfig
+import config
 
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 
 # importing data from config.json
-GUILD_ID = botconfig.GUILD
+GUILD_ID = config.GUILD
 
 bot = commands.Bot(command_prefix='.', intents=intents)
 
@@ -48,7 +48,7 @@ async def on_ready():
 
 
 async def main():
-    token = botconfig.TOKEN
+    token = config.TOKEN
 
     async with bot:
         await bot.start(token)

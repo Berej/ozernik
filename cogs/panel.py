@@ -2,7 +2,7 @@ import asyncio
 import discord
 from discord.ext import commands
 
-import botconfig
+import config
 
 ALLOWED_ROLES = [725675581881974794, 1398937618527293510]
 
@@ -27,7 +27,7 @@ class panel(commands.Cog):
             return
 
         # require this to happen in the configured guild
-        if message.guild is None or message.guild.id != botconfig.GUILD:
+        if message.guild is None or message.guild.id != config.GUILD:
             return
 
         # ensure author is a guild Member (has roles)
