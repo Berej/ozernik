@@ -69,7 +69,7 @@ class VoiceManager(commands.Cog):
         # - владелец: видит, подключается, и имеет manage_channels (без move/mute/deafen)
         # - бот: имеет доступ и manage_channels
         overwrites = {
-            guild.default_role: discord.PermissionOverwrite(view_channel=False, connect=False),
+            guild.default_role: discord.PermissionOverwrite(view_channel=True, connect=True),
             member: discord.PermissionOverwrite(view_channel=True, connect=True, manage_channels=True),
             guild.me: discord.PermissionOverwrite(view_channel=True, connect=True, manage_channels=True)
         }
