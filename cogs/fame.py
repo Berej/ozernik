@@ -16,7 +16,7 @@ import config
 # ====== Settings ======
 GUILD_ID = config.GUILD
 DB_PATH = "ranks.db"
-LOG_CHANNEL_ID = 1409197452954828990  # log channel
+LOG_CHANNEL_ID = 1342897615905226842  # log channel
 LOG_COLOR = 0x2F3136  # Color for embed messages on log channel
 # moderator roles
 FAME_MODS = {779015800555176006, 725675581881974794, 1296437623761539146, 780422873122603018, 1398937618527293510}
