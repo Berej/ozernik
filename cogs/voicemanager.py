@@ -5,7 +5,10 @@ from discord.ext import commands
 import config
 
 VOICE_ID = config.VM_CHANNEL_ID
-CATEGORY_ID = config.VM_CATEGORY_ID  # можно = 0 если не указана категория
+CATEGORY_ID = config.VM_CATEGORY_ID  # can be = 0 if no category specified
+
+# Roles that should be forbidden from joining temporary voice channels
+FORBIDDEN_ROLE_IDS = [1234872836691067063, 1168293205624766524]
 
 class VoiceManager(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -54,7 +57,7 @@ class VoiceManager(commands.Cog):
                     await member.move_to(existing_channel)
                     return
                 except Exception as e:
-                    # Couldn't move (permissions etc). Fallthrough to create a new one.
+                    # Couldn't move (permissions etc). Fall through to create a new one.
                     print(f"Failed to move {member} to existing channel {existing_channel.id}: {e}")
 
         # create in category if provided and valid
@@ -65,14 +68,28 @@ class VoiceManager(commands.Cog):
                 print(f"Warning: category id {CATEGORY_ID} not found in guild {guild.id}; creating channel at root.")
 
         # Overwrites:
-        # - @everyone: не видеть/не подключаться
-        # - владелец: видит, подключается, и имеет manage_channels (без move/mute/deafen)
-        # - бот: имеет доступ и manage_channels
-        overwrites = {
-            guild.default_role: discord.PermissionOverwrite(view_channel=True, connect=True),
-            member: discord.PermissionOverwrite(view_channel=True, connect=True, manage_channels=True),
-            guild.me: discord.PermissionOverwrite(view_channel=True, connect=True, manage_channels=True)
-        }
+        # - @everyone: hide / cannot connect by default
+        # - owner: can view, connect, and has manage_channels (no explicit move/mute/deafen)
+        # - bot: has access and manage_channels
+        # - forbidden roles: explicitly denied view and connect
+        overwrites: dict[discord.abc.Snowflake, discord.PermissionOverwrite] = {}
+
+        # Default: deny everyone from seeing/connecting (we'll allow owner & bot explicitly)
+        overwrites[guild.default_role] = discord.PermissionOverwrite(view_channel=False, connect=False)
+
+        # Deny connect/view for configured forbidden roles (if they exist in guild)
+        for rid in FORBIDDEN_ROLE_IDS:
+            role = guild.get_role(rid)
+            if role:
+                overwrites[role] = discord.PermissionOverwrite(view_channel=False, connect=False)
+            else:
+                # If role not found, log a warning but continue
+                print(f"Warning: forbidden role id {rid} not found in guild {guild.id}.")
+
+        # Allow owner and bot
+        overwrites[member] = discord.PermissionOverwrite(view_channel=True, connect=True, manage_channels=True)
+        if guild.me:
+            overwrites[guild.me] = discord.PermissionOverwrite(view_channel=True, connect=True, manage_channels=True)
 
         name = f"{member.display_name}'s Room"
 
