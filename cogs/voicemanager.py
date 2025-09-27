@@ -74,8 +74,8 @@ class VoiceManager(commands.Cog):
         # - forbidden roles: explicitly denied view and connect
         overwrites: dict[discord.abc.Snowflake, discord.PermissionOverwrite] = {}
 
-        # Default: deny everyone from seeing/connecting (we'll allow owner & bot explicitly)
-        overwrites[guild.default_role] = discord.PermissionOverwrite(view_channel=False, connect=False)
+        # Default: deny everyone from connecting (we'll allow owner & bot explicitly)
+        overwrites[guild.default_role] = discord.PermissionOverwrite(view_channel=True, connect=False)
 
         # Deny connect/view for configured forbidden roles (if they exist in guild)
         for rid in FORBIDDEN_ROLE_IDS:
