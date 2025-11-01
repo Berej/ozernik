@@ -6,25 +6,26 @@ from typing import Any, Dict, Type
 
 CONFIG_PATH = Path(__file__).parent / "config.json"
 
-# 🔧 Базовый шаблон конфигурации
+# Config template
 DEFAULT_TEMPLATE: Dict[str, Any] = {
     "TOKEN": "",
     "GUILD": 0,
     "VM_CHANNEL_ID": 0,
     "VM_CATEGORY_ID": 0,
+    "LOG_CHANNEL_ID": 0,
 }
 
-# Типы значений (для автоконверсии из окружения)
+# data types
 EXPECTED_TYPES: Dict[str, Type] = {
     "TOKEN": str,
     "GUILD": int,
     "VM_CHANNEL_ID": int,
     "VM_CATEGORY_ID": int,
+    "LOG_CHANNEL_ID": int,
 }
 
 
 class Config:
-    """Типизированный объект конфигурации."""
 
     def __init__(self, path: Path):
         self.path = path
@@ -35,10 +36,10 @@ class Config:
 
         self._validate()
 
-    # ====== Вспомогательные методы ======
+    # ====== Helper methods ======
 
     def _load_and_merge(self) -> Dict[str, Any]:
-        """Загружает JSON, создаёт при отсутствии, дополняет недостающие ключи."""
+        """Loads JSON, creates it if missing, fills in missing keys."""
         try:
             with self.path.open("r", encoding="utf-8") as f:
                 data = json.load(f)
@@ -53,7 +54,7 @@ class Config:
             print(f"Error reading {self.path.name}: {e}")
             sys.exit(1)
 
-        # Добавляем новые поля, если они появились в DEFAULT_TEMPLATE
+        # Add new fields if they appeared in DEFAULT_TEMPLATE
         updated = False
         for key, default_value in DEFAULT_TEMPLATE.items():
             if key not in data:
@@ -67,13 +68,13 @@ class Config:
         return data
 
     def _create_template(self) -> None:
-        """Создаёт пустой шаблон config.json."""
+        """Creates an empty config.json template."""
         with self.path.open("w", encoding="utf-8") as f:
             json.dump(DEFAULT_TEMPLATE, f, indent=4, ensure_ascii=False)
         print(f"Created {self.path.name}. Fill it with your data and restart the bot.")
 
     def _get_value(self, key: str, default: Any) -> Any:
-        """Сначала берёт значение из окружения, затем из файла, с автоконверсией."""
+        """Takes value from environment first, then from file, with auto-conversion."""
         env_value = os.getenv(key)
         if env_value is not None:
             target_type = EXPECTED_TYPES.get(key, str)
@@ -85,13 +86,12 @@ class Config:
         return default
 
     def _validate(self) -> None:
-        """Проверяет, что обязательные поля не пустые."""
+        """Checks that required fields are not empty."""
         missing = [k for k, v in vars(self).items() if k.isupper() and not v]
         if missing:
             print(f"Config incomplete: {', '.join(missing)}\nFill in {self.path} and restart.")
             sys.exit(1)
 
 
-# ====== Использование ======
 
 config = Config(CONFIG_PATH)

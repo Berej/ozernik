@@ -4,7 +4,7 @@ from discord import app_commands, Interaction
 from discord.ext import commands
 from config_loader import config
 
-LOG_CHANNEL = 1409197452954828990
+LOG_CHANNEL = config.LOG_CHANNEL_ID
 
 ALLOWED_ROLES = [725675581881974794, 1398937618527293510]
 
