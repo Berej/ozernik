@@ -1,8 +1,10 @@
 import asyncio
 import discord
+from discord import app_commands, Interaction
 from discord.ext import commands
-
 import config
+
+LOG_CHANNEL = 1409197452954828990
 
 ALLOWED_ROLES = [725675581881974794, 1398937618527293510]
 
@@ -69,6 +71,70 @@ class panel(commands.Cog):
                 loop.stop()
             except Exception:
                 pass
+
+
+    # --------- BOT TEXT MODERATION COMMANDS --------- 
+    # Here are slash-commands to send and modify bot's messages
+
+
+
+    # Send message with bot
+    @app_commands.command(
+        name='send_message',
+        description='Отправить сообщение от имени Бота'
+    )
+    @app_commands.describe(channel='Канал отправки', content="Содержимое сообщения.")
+    @app_commands.guilds(config.GUILD)
+    async def send_message(self, interaction: Interaction, channel: discord.TextChannel, content: str):
+        if not any(role.id in ALLOWED_ROLES for role in interaction.user.roles):
+            await interaction.response.send_message("Только для Администрации.", ephemeral=True)
+            return
+
+        log_channel = interaction.guild.get_channel(LOG_CHANNEL)
+        formatted_content = content.replace("\\n", "\n")
+
+        await channel.send(formatted_content)
+        await log_channel.send(
+            f'{interaction.user.name.capitalize()} отправил сообщение в канале {channel.mention}.\n>>> {formatted_content}'
+        )
+        await interaction.response.send_message("Сообщение отправлено.", ephemeral=True)
+
+
+    # Edit bot's message
+    @app_commands.command(
+        name='edit_message',
+        description='Редактировать сообщение Бота.'
+    )
+    @app_commands.describe(
+        channel="Канал сообщения.",
+        message_id="ID сообщения.",
+        content="Новое содержимое сообщения."
+    )
+    @app_commands.guilds(config.GUILD)
+    async def edit_message(self, interaction: Interaction, channel: discord.TextChannel, message_id: str, content: str):
+        if not any(role.id in ALLOWED_ROLES for role in interaction.user.roles):
+            await interaction.response.send_message("Только для Администрации.", ephemeral=True)
+            return
+
+        log_channel = interaction.guild.get_channel(LOG_CHANNEL)
+
+        try:
+            message = await channel.fetch_message(int(message_id))
+        except Exception as e:
+            await interaction.response.send_message(f"Сообщение не найдено: {e}", ephemeral=True)
+            return
+
+        old_content = message.content
+        formatted_content = content.replace("\\n", "\n")
+
+        await message.edit(content=formatted_content)
+        await log_channel.send(
+            f'{interaction.user.name.capitalize()} отредактировал сообщение в канале {channel.mention}.\n'
+            f'Старое сообщение:\n> {old_content}\n'
+            f'Новое сообщение:\n>>> {formatted_content}'
+        )
+        await interaction.response.send_message("Сообщение изменено.", ephemeral=True)
+
 
 async def setup(bot):
     await bot.add_cog(panel(bot))
