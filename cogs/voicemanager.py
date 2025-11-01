@@ -2,7 +2,7 @@ import asyncio
 import discord
 from discord.ext import commands
 
-import config
+from config_loader import config
 
 VOICE_ID = config.VM_CHANNEL_ID
 CATEGORY_ID = config.VM_CATEGORY_ID  # can be = 0 if no category specified

@@ -4,7 +4,7 @@ from discord.ext import commands
 from datetime import timedelta, timezone
 import os
 
-import config
+from config_loader import config
 
 intents = discord.Intents.default()
 intents.message_content = True

@@ -11,7 +11,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-import config
+from config_loader import config
 
 # ====== Settings ======
 GUILD_ID = config.GUILD

@@ -2,7 +2,7 @@ import asyncio
 import discord
 from discord import app_commands, Interaction
 from discord.ext import commands
-import config
+from config_loader import config
 
 LOG_CHANNEL = 1409197452954828990
 
