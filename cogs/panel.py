@@ -2,6 +2,7 @@ import asyncio
 import discord
 from discord import app_commands, Interaction
 from discord.ext import commands
+from discord import Embed
 from config_loader import config
 
 LOG_CHANNEL = config.LOG_CHANNEL_ID
@@ -86,18 +87,52 @@ class panel(commands.Cog):
     @app_commands.describe(channel='Канал отправки', content="Содержимое сообщения.")
     @app_commands.guilds(config.GUILD)
     async def send_message(self, interaction: Interaction, channel: discord.TextChannel, content: str):
-        if not any(role.id in ALLOWED_ROLES for role in interaction.user.roles):
-            await interaction.response.send_message("Только для Администрации.", ephemeral=True)
-            return
+        try:
+                if not any(role.id in ALLOWED_ROLES for role in interaction.user.roles):
+                    await interaction.response.send_message("Только для Администрации.", ephemeral=True)
+                    return
 
-        log_channel = interaction.guild.get_channel(LOG_CHANNEL)
-        formatted_content = content.replace("\\n", "\n")
+                formatted_content = content.replace("\\n", "\n")
+                if '\\n' in content:
+                    log_content = content.replace("\\n", "\n\\n")
+                else:
+                    log_content = content.replace("\n", "\n\\n")
 
-        await channel.send(formatted_content)
-        await log_channel.send(
-            f'{interaction.user.name.capitalize()} отправил сообщение в канале {channel.mention}.\n>>> {formatted_content}'
-        )
-        await interaction.response.send_message("Сообщение отправлено.", ephemeral=True)
+
+                # Sending message
+                sent_message = await channel.send(formatted_content)
+
+                # Get or create webhook for logs
+                log_channel = interaction.guild.get_channel(LOG_CHANNEL)
+                webhooks = await log_channel.webhooks()
+                if webhooks:
+                    webhook = webhooks[0]
+                else:
+                    webhook = await log_channel.create_webhook(name="Лилия, следящая за информацией")
+
+
+                # Creating Embed
+                embed = Embed(
+                    title=f"Отправлено сообщение в #{channel.name}",
+                    url=f"https://discord.com/channels/{interaction.guild.id}/{channel.id}/{sent_message.id}",
+                    description=f"{formatted_content}",
+                    color=0x3498db
+                )
+                embed.set_author(
+                    name=interaction.user.name,
+                    icon_url=interaction.user.display_avatar.url
+                )
+                embed.set_footer(text=f"{sent_message.id}")
+
+                embed.add_field(name="Формат:", value=f'{log_content}', inline=False)
+
+                # Send log with webhook
+                await webhook.send(embed=embed)
+
+                await interaction.response.send_message("Сообщение отправлено.", ephemeral=True)
+        except Exception as e:
+            print(f"Error send_message: {e}")
+            await interaction.response.send_message("Произошла ошибка при отправке сообщения.", ephemeral=True)
 
 
     # Edit bot's message
@@ -112,29 +147,77 @@ class panel(commands.Cog):
     )
     @app_commands.guilds(config.GUILD)
     async def edit_message(self, interaction: Interaction, channel: discord.TextChannel, message_id: str, content: str):
-        if not any(role.id in ALLOWED_ROLES for role in interaction.user.roles):
-            await interaction.response.send_message("Только для Администрации.", ephemeral=True)
-            return
-
-        log_channel = interaction.guild.get_channel(LOG_CHANNEL)
-
         try:
-            message = await channel.fetch_message(int(message_id))
+                # Проверка ролей
+                if not any(role.id in ALLOWED_ROLES for role in interaction.user.roles):
+                    await interaction.response.send_message("Только для Администрации.", ephemeral=True)
+                    return
+
+                # Проверка канала
+                if not channel:
+                    await interaction.response.send_message("Канал не найден.", ephemeral=True)
+                    return
+
+                # Получаем сообщение
+                try:
+                    message = await channel.fetch_message(int(message_id))
+                except Exception as e:
+                    await interaction.response.send_message(f"Сообщение не найдено: {e}", ephemeral=True)
+                    return
+
+                old_content = message.content or "*Пустое сообщение*"
+
+                # Форматирование текста
+                formatted_content = content.replace("\\n", "\n")
+                if '\\n' in content:
+                    log_content = content.replace("\\n", "\n\\n")
+                else:
+                    log_content = content.replace("\n", "\n\\n")
+
+                log_old_content = message.content.replace("\n", "\n\\n")
+
+
+                # Редактирование
+                await message.edit(content=formatted_content)
+
+                # Получаем или создаем вебхук для логов
+                log_channel = interaction.guild.get_channel(LOG_CHANNEL)
+                webhooks = await log_channel.webhooks()
+                if webhooks:
+                    webhook = webhooks[0]
+                else:
+                    webhook = await log_channel.create_webhook(
+                        name="Лилия, следящая за информацией",
+                        avatar=await interaction.user.display_avatar.read()
+                    )
+
+                # Формируем Embed
+                embed = discord.Embed(
+                    title=f"Изменено сообщение в #{channel.name}",
+                    url=f"https://discord.com/channels/{interaction.guild.id}/{channel.id}/{message.id}",
+                    color=0xF1C40F  # жёлтый (для изменения)
+                )
+                embed.set_author(
+                    name=interaction.user.name,
+                    icon_url=interaction.user.display_avatar.url
+                )
+
+                embed.add_field(name="Старое сообщение:", value=old_content, inline=False)
+                embed.add_field(name="Формат:", value=log_old_content, inline=False)
+                embed.add_field(name="Новое сообщение:", value=formatted_content, inline=False)
+                embed.add_field(name="Формат:", value=log_content, inline=False)
+
+                embed.set_footer(text=message.id)
+
+                # Отправляем лог через вебхук
+                await webhook.send(embed=embed)
+
+                # Ответ пользователю
+                await interaction.response.send_message("Сообщение изменено.", ephemeral=True)
+
         except Exception as e:
-            await interaction.response.send_message(f"Сообщение не найдено: {e}", ephemeral=True)
-            return
-
-        old_content = message.content
-        formatted_content = content.replace("\\n", "\n")
-
-        await message.edit(content=formatted_content)
-        await log_channel.send(
-            f'{interaction.user.name.capitalize()} отредактировал сообщение в канале {channel.mention}.\n'
-            f'Старое сообщение:\n> {old_content}\n'
-            f'Новое сообщение:\n>>> {formatted_content}'
-        )
-        await interaction.response.send_message("Сообщение изменено.", ephemeral=True)
-
+            print(f"Error edit_message: {e}")
+            await interaction.response.send_message("Произошла ошибка при изменении сообщения.", ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(panel(bot))
