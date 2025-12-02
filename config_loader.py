@@ -9,19 +9,27 @@ CONFIG_PATH = Path(__file__).parent / "config.json"
 # Config template
 DEFAULT_TEMPLATE: Dict[str, Any] = {
     "TOKEN": "",
+    "TELEGRAM_TOKEN_1": "",
+    "TELEGRAM_TOKEN_2": "",
     "GUILD": 0,
     "VM_CHANNEL_ID": 0,
     "VM_CATEGORY_ID": 0,
     "LOG_CHANNEL_ID": 0,
+    "BR_DISCORD_CHANNEL_ID": 0,
+    "BR_TELEGRAM_CHANNEL_ID": 0,
 }
 
 # data types
 EXPECTED_TYPES: Dict[str, Type] = {
     "TOKEN": str,
+    "TELEGRAM_TOKEN_1": str,
+    "TELEGRAM_TOKEN_2": str,
     "GUILD": int,
     "VM_CHANNEL_ID": int,
     "VM_CATEGORY_ID": int,
     "LOG_CHANNEL_ID": int,
+    "BR_DISCORD_CHANNEL_ID": int,
+    "BR_TELEGRAM_CHANNEL_ID": int,
 }
 
 
