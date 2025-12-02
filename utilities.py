@@ -32,15 +32,25 @@ class BridgeStorage:
 
     @staticmethod
     def _load_json(path: str) -> list:
-        """Safely load JSON data as list. If file does not exist or is corrupted, return empty list."""
+        """
+        Safely load JSON data from a file as a list.
+        - If file does not exist, creates it as an empty list.
+        - If JSON is invalid or any error occurs, returns an empty list.
+        """
+        # Create a directory if it doesn't exist
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+
+        # If the file does not exist, we create an empty JSON
         if not os.path.exists(path):
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump([], f, ensure_ascii=False, indent=2)
             return []
+
+        # Trying to load JSON
         try:
             with open(path, "r", encoding="utf-8") as f:
                 return json.load(f)
-        except json.JSONDecodeError:
-            return []
-        except Exception:  # noqa
+        except (json.JSONDecodeError, Exception):
             return []
 
     @staticmethod
