@@ -247,16 +247,20 @@ class BridgeDiscord(commands.Cog):
             for link in links:
                 if link[1] == replied_id:
                     replied_message = await channel.fetch_message(link[0])
+                    replied_content = replied_message.content
                     if len(replied_message.content) < 30:
-                        reply_text = f'[{replied_message.content}](https://discord.com/channels/{config.GUILD}/{config.BR_DISCORD_CHANNEL_ID}/{link[0]})'
+                        reply_text = f'[{replied_content}](https://discord.com/channels/{config.GUILD}/{config.BR_DISCORD_CHANNEL_ID}/{link[0]})'
                     else:
-                        reply_text = f'[{replied_message.content[:30]}...](https://discord.com/channels/{config.GUILD}/{config.BR_DISCORD_CHANNEL_ID}/{link[0]})'
+                        reply_text = f'[{replied_content[:30]}...](https://discord.com/channels/{config.GUILD}/{config.BR_DISCORD_CHANNEL_ID}/{link[0]})'
+                    if not replied_content:
+                        reply_text = f'https://discord.com/channels/{config.GUILD}/{config.BR_DISCORD_CHANNEL_ID}/{link[0]}'
                     if replied_name == 'Lily':
                         reply_ping = f'<@{replied_message.author.id}>'
                     else:
                         reply_ping = f'**{replied_name}**'
 
                     reply = f'-# ┏  {reply_ping}╺╸**{reply_text}**\n'
+                    break
 
             final_text = reply + mess_text
 
