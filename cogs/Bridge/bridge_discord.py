@@ -251,7 +251,7 @@ class BridgeDiscord(commands.Cog):
                         reply_text = f'[{replied_message.content}](https://discord.com/channels/{config.GUILD}/{config.BR_DISCORD_CHANNEL_ID}/{link[0]})'
                     else:
                         reply_text = f'[{replied_message.content[:30]}...](https://discord.com/channels/{config.GUILD}/{config.BR_DISCORD_CHANNEL_ID}/{link[0]})'
-                    if replied_name == 'test':
+                    if replied_name == 'Lily':
                         reply_ping = f'<@{replied_message.author.id}>'
                     else:
                         reply_ping = f'**{replied_name}**'
