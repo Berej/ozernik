@@ -1,0 +1,36 @@
+import asyncio
+from discord.ext import commands
+
+# импортируем телеграм процесс
+from cogs.Bridge.bridge_telegram import start_telegram_bot
+
+
+class BridgeMain(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+
+        # запустить телеграм мост в фоне
+        self.tg_task = bot.loop.create_task(self.start_telegram_bridge())
+
+        # загрузить discord ког
+        bot.loop.create_task(self.load_bridge_discord())
+
+    async def start_telegram_bridge(self):  # noqa
+        """Запуск Telegram моста."""
+        try:
+            await start_telegram_bot()
+        except Exception as e:
+            print(f"Ошибка Telegram моста: {e}")
+
+    async def load_bridge_discord(self):
+        """Загрузка кода моста как кога."""
+        try:
+            await self.bot.load_extension("cogs.Bridge.bridge_discord")
+            print("bridge_discord загружен как ког.")
+        except Exception as e:
+            print(f"Ошибка загрузки bridge_discord: {e}")
+
+
+async def setup(bot):
+    await bot.add_cog(BridgeMain(bot))
+
