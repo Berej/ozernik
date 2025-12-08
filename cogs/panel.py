@@ -7,7 +7,11 @@ from config_loader import config
 
 LOG_CHANNEL = config.LOG_CHANNEL_ID
 
-ALLOWED_ROLES = [725675581881974794, 1408776412177109142, 1284568196673830924]
+ALLOWED_ROLES = [725675581881974794, # admin role main server
+                 1408776412177109142, 
+                 1284568196673830924, 
+                 1398937618527293510 # admin role test server
+                 ]
 
 class Panel(commands.Cog):
     def __init__(self, bot: commands.Bot):

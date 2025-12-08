@@ -17,6 +17,7 @@ from config_loader import config
 GUILD_ID = config.GUILD
 DB_PATH = "ranks.db"
 LOG_CHANNEL_ID = 1342897615905226842  # log channel
+#LOG_CHANNEL_ID = 1409197452954828990 # log channel test server
 LOG_COLOR = 0x2F3136  # Color for embed messages on log channel
 # moderator roles
 FAME_MODS = {779015800555176006, 725675581881974794, 1296437623761539146, 780422873122603018, 1398937618527293510}
@@ -72,7 +73,7 @@ def fame_note_embed(author: discord.User, target: discord.User, action: int, rea
     """
     note = discord.Embed(color=LOG_COLOR)
     note.set_author(name=author.name, icon_url=author.avatar.url if hasattr(author, "avatar") and author.avatar else None)
-    sign = "+" if action == 1 else "-"
+    sign = "``+``" if action == 1 else "``-``"
     # limit length of 'reason' in embed log message
     reason_display = (reason_text[:300] + '...') if reason_text and len(reason_text) > 300 else (reason_text or "админская правка")
     target_name = getattr(target, "display_name", str(target))
@@ -337,7 +338,7 @@ class FameGroup(commands.Cog):
             self.bot.loop.create_task(self.upd_wall(interaction.guild))
             await interaction.response.send_message(
                 f'Изменены баллы: {getattr(user, "display_name", getattr(user, "name", str(user)))}: {res["old_score"]} -> {res["new_score"]}',
-                ephemeral=True
+                ephemeral=False
             )
             # logging the reason
             note = fame_note_embed(interaction.user, user, action=1, reason_text=reason, count=amount)
@@ -382,7 +383,7 @@ class FameGroup(commands.Cog):
             self.bot.loop.create_task(self.upd_wall(interaction.guild))  # updating wall
             await interaction.response.send_message(
                 f'У {getattr(user, "display_name", getattr(user, "name", str(user)))} снято {amount} баллов: {res["old_score"]} -> {res["new_score"]}',
-                ephemeral=True
+                ephemeral=False
             )
             note = fame_note_embed(interaction.user, user, action=2, reason_text=reason, count=amount)
             try:
@@ -411,7 +412,7 @@ class FameGroup(commands.Cog):
             return
         try:
             await self.ensure_member(user.id)
-            await interaction.response.send_message(f'{user.mention} добавлен в список', ephemeral=True)
+            await interaction.response.send_message(f'{user.mention} добавлен в список', ephemeral=False)
         except Exception:
             logger.exception("Ошибка при добавлении участника")
             await interaction.response.send_message('Произошла ошибка при добавлении участника.', ephemeral=True)
@@ -456,7 +457,7 @@ class FameGroup(commands.Cog):
             return
         try:
             path = await self.create_report_file(interaction.guild)
-            await interaction.response.send_message(file=discord.File(path), ephemeral=True)
+            await interaction.response.send_message(file=discord.File(path), ephemeral=False)
             try:
                 os.remove(path)
             except Exception:
@@ -475,7 +476,7 @@ class FameGroup(commands.Cog):
             return
         try:
             report_path = await self.create_report_file(interaction.guild)
-            await interaction.response.send_message('Выполняю сброс сезона — отчёт во вложении.', file=discord.File(report_path), ephemeral=True)
+            await interaction.response.send_message('Выполняю сброс сезона — отчёт во вложении.', file=discord.File(report_path), ephemeral=False)
             try:
                 os.remove(report_path)
             except Exception:
@@ -494,7 +495,7 @@ class FameGroup(commands.Cog):
         except Exception:
             logger.exception("Ошибка при выполнении немедленного сброса сезона")
             try:
-                await interaction.followup.send('Произошла ошибка при выполнении сброса сезона.', ephemeral=True)
+                await interaction.followup.send('Произошла ошибка при выполнении сброса сезона.', ephemeral=False)
             except Exception:
                 pass
 
