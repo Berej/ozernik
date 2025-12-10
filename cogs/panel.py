@@ -124,10 +124,11 @@ class Panel(commands.Cog):
             # Get or create webhook for logs
             log_channel = interaction.guild.get_channel(LOG_CHANNEL)
             webhooks = await log_channel.webhooks()
-            webhook = next((w for w in webhooks if w.name == "Лилия, следящая за информацией"), None)
+            #webhook = next((w for w in webhooks if w.name == "Лилия, следящая за информацией"), None)
+            webhook = next((w for w in webhooks if w.name == "Kotyara"), None)
 
             if webhook is None:
-                webhook = await channel.create_webhook(name="Лилия, следящая за информацией")
+                webhook = await channel.create_webhook(name="Kotyara")
                 print("Created new webhook")
 
             # Creating Embed
