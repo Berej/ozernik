@@ -87,7 +87,6 @@ def fame_note_embed(author: discord.User, target: discord.User, action: int, rea
 
 class FameGroup(commands.Cog):
     def __init__(self, bot: commands.Bot):
-        print(f'Зал славы запущен в гильдии: {GUILD_ID}')
         self.bot = bot
         self._lock = asyncio.Lock()
         # Initialize DB asynchronously

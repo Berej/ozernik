@@ -16,13 +16,6 @@ class BridgeDiscord(commands.Cog):
         self.do_request.start()
 
     # -------------------------
-    #        ON READY
-    # -------------------------
-    @commands.Cog.listener()
-    async def on_ready(self):
-        print("[bridge_discord] cog loaded and activated")
-
-    # -------------------------
     #        ON MESSAGE
     # -------------------------
     @commands.Cog.listener()
@@ -247,7 +240,7 @@ class BridgeDiscord(commands.Cog):
             for link in links:
                 if link[1] == replied_id:
                     replied_message = await channel.fetch_message(link[0])
-                    replied_content = replied_message.content
+                    replied_content = replied_message.content.replace('\n', ' ').replace('<', '<\\')
                     if len(replied_message.content) < 30:
                         reply_text = f'[{replied_content}](https://discord.com/channels/{config.GUILD}/{config.BR_DISCORD_CHANNEL_ID}/{link[0]})'
                     else:

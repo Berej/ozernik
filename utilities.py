@@ -10,10 +10,10 @@ class BridgeStorage:
     """
 
     def __init__(self,
-                 req_path="cogs/Bridge/queues/Requests.json",
-                 link_path="cogs/Bridge/LinkMess.json",
-                 dtt_path="cogs/Bridge/queues/DisToTel.json",
-                 ttd_path="cogs/Bridge/queues/TelToDis.json"):
+                 link_path="modules/Bridge/LinkMess.json",
+                 req_path="modules/Bridge/queues/Requests.json",
+                 dtt_path="modules/Bridge/queues/DisToTel.json",
+                 ttd_path="modules/Bridge/queues/TelToDis.json"):
 
         self.req_path = req_path
         self.link_path = link_path
