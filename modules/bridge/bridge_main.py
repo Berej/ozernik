@@ -1,8 +1,7 @@
-import asyncio
 from discord.ext import commands
 
 # импортируем телеграм процесс
-from cogs.Bridge.bridge_telegram import start_telegram_bot
+from modules.bridge.cogs.bridge_telegram import start_telegram_bot
 
 
 class BridgeMain(commands.Cog):
@@ -25,8 +24,7 @@ class BridgeMain(commands.Cog):
     async def load_bridge_discord(self):
         """Загрузка кода моста как кога."""
         try:
-            await self.bot.load_extension("cogs.Bridge.bridge_discord")
-            print("bridge_discord загружен как ког.")
+            await self.bot.load_extension("modules.bridge.cogs.bridge_discord")
         except Exception as e:
             print(f"Ошибка загрузки bridge_discord: {e}")
 

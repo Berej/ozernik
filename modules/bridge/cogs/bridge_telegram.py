@@ -9,6 +9,7 @@ recent = None
 
 async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE): # noqa
     global first
+    print(update.effective_chat.id)
     if update.effective_chat.id != config.BR_TELEGRAM_CHANNEL_ID:
         return
     first = True
@@ -197,7 +198,6 @@ async def send_tel_message(bot_list):
 
 async def do_request(bot_list):
     global recent
-    print(f'Bridge: Request processing started')
     while True:
         try:
             request = storage.pop_req('telegram')
@@ -320,14 +320,16 @@ async def start_telegram_bot():
         await app1.initialize()
         await app1.start()
         await app1.updater.start_polling()
-        print("First Telegram bot has been launched.")
+    except Exception as e:
+        print(f'Error launching Telegram bot 2: {e}')
+        return
 
+    try:
         await app2.initialize()
         await app2.start()
         await app2.updater.start_polling(allowed_updates=["message", "edited_message", "message_reaction", "handle_reply"])
-        print("Second Telegram bot has been launched.")
     except Exception as e:
-        print(f'Error launching Telegram bots: {e}')
+        print(f'Error launching Telegram bot 1: {e}')
         return
 
     asyncio.create_task(send_tel_message([app1.bot, app2.bot]))
