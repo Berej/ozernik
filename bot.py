@@ -1,5 +1,6 @@
 # main.py
 import discord
+import traceback
 from discord.ext import commands
 from datetime import timedelta, timezone
 import os
@@ -49,9 +50,10 @@ async def load_extensions():
                     + Style.RESET_ALL
                 )
             except Exception as e:
+                tb = traceback.format_exc()
                 print(
                     Fore.RED
-                    + f"{i}. [{module_path}] Error loading cog: {e}"
+                    + f'{i}. [{module_path}] Error loading cog: "{tb}".'
                     + Style.RESET_ALL
                 )
 

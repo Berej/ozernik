@@ -1,6 +1,42 @@
 import json
 import os
 from threading import Lock
+from typing import Any
+
+class JsonWorker:
+    def __init__(self, json_path: str):
+        super().__setattr__("json_path", json_path)
+        super().__setattr__("_data", self._open_data())
+
+    def _open_data(self) -> dict[str, Any]:
+        os.makedirs(os.path.dirname(self.json_path) or ".", exist_ok=True)
+
+        try:
+            with open(self.json_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except FileNotFoundError:
+            with open(self.json_path, "w", encoding="utf-8") as f:
+                json.dump({}, f, ensure_ascii=False, indent=4)
+            return {}
+
+    def _commit_data(self) -> None:
+        with open(self.json_path, "w", encoding="utf-8") as f:
+            json.dump(self._data, f, ensure_ascii=False, indent=4)
+
+class DataWorker(JsonWorker):
+    def __getattr__(self, name: str) -> Any:
+        try:
+            return self._data[name]
+        except KeyError:
+            raise AttributeError(f"{self.__class__.__name__} has no attribute '{name}'")
+
+    def __setattr__(self, name: str, value: Any):
+        if name in {"json_path", "_data"}:
+            super().__setattr__(name, value)
+            return
+
+        self._data[name] = value
+        self._commit_data()
 
 
 class BridgeStorage:
