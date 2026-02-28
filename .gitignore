@@ -9,3 +9,5 @@ test/*
 config.json
 LinkMess.json
 temp/*
+/modules/cold_old_man/data.json
+/modules/cold_old_man/table.json
