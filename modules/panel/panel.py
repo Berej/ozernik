@@ -1,6 +1,6 @@
 import asyncio
 import discord
-from discord import app_commands, Interaction
+from discord import app_commands
 from discord.ext import commands
 from discord import Embed
 from config_loader import config
@@ -83,7 +83,6 @@ class Panel(commands.Cog):
     # Here are slash-commands to send and modify bot's messages
 
 
-
     # Send message with bot
     @app_commands.command(
         name='send_message',
@@ -91,34 +90,34 @@ class Panel(commands.Cog):
     )
     @app_commands.describe(channel='Канал отправки', content="Содержимое сообщения.")
     @app_commands.guilds(config.GUILD)
-    async def send_message(self, interaction: Interaction, channel: discord.TextChannel, content: str):
+    async def send_message(self, interaction: discord.Interaction, channel: discord.TextChannel, content: str):
+        # Validate everything before touching Discord
+        if not any(role.id in ALLOWED_ROLES for role in interaction.user.roles):
+            await interaction.response.send_message("Только для Администрации.", ephemeral=True)
+            return
+
+        if not channel:
+            await interaction.response.send_message("Канал не найден.", ephemeral=True)
+            return
+
+        if len(content) > 2000:
+            await interaction.response.send_message("Сообщение слишком длинное.", ephemeral=True)
+            return
+
+        formatted_content = content.replace("\\n", "\n")
+        if '\\n' in content:
+            log_content = content.replace("\\n", "\n\\n")
+        else:
+            log_content = content.replace("\n", "\n\\n")
+
+        # Acknowledge the interaction FIRST — before any channel.send()
+        await interaction.response.send_message("Сообщение отправлено.", ephemeral=True)
+
         try:
-            if not any(role.id in ALLOWED_ROLES for role in interaction.user.roles):
-                await interaction.response.send_message("Только для Администрации.", ephemeral=True)
-                return
-
-            # Проверка канала
-            if not channel:
-                await interaction.response.send_message("Канал не найден.", ephemeral=True)
-                return
-
-            if len(content) > 2000:
-                await interaction.response.send_message("Сообщение слишком длинное.", ephemeral=True)
-                return
-
-            formatted_content = content.replace("\\n", "\n")
-            if '\\n' in content:
-                log_content = content.replace("\\n", "\n\\n")
-            else:
-                log_content = content.replace("\n", "\n\\n")
-
-
-            # Sending message
             sent_message = await channel.send(formatted_content)
-            await interaction.response.send_message("Сообщение отправлено.", ephemeral=True)
         except Exception as e:
             print(f"Error send_message: {e}")
-            await interaction.response.send_message(f"Произошла ошибка при отправке сообщения:\n```\n{e}\n```", ephemeral=True)
+            await interaction.followup.send(f"Произошла ошибка при отправке сообщения:\n```\n{e}\n```", ephemeral=True)
             return
 
         try:
@@ -128,7 +127,7 @@ class Panel(commands.Cog):
             webhook = next((w for w in webhooks if w.name == "Лилия, следящая за информацией"), None)
 
             if webhook is None:
-                webhook = await channel.create_webhook(name="Лилия, следящая за информацией")
+                webhook = await log_channel.create_webhook(name="Лилия, следящая за информацией")
                 print("Created new webhook")
 
             # Creating Embed
@@ -146,13 +145,12 @@ class Panel(commands.Cog):
             await webhook.send(embed=embed)
 
             for i, pair in enumerate(embeds_pairs):
-                if i == 0: embed = Embed(color=0x3498db, description=pair)
+                if i == 0:
+                    embed = Embed(color=0x3498db, description=pair)
                 else:
                     embed = Embed(color=0x3498db)
                     embed.set_footer(text=pair)
                 await webhook.send(embed=embed)
-            # Send log with webhook
-
 
         except Exception as e:
             print(f"Error log send_message: {e}")
@@ -170,7 +168,7 @@ class Panel(commands.Cog):
         content="Новое содержимое сообщения."
     )
     @app_commands.guilds(config.GUILD)
-    async def edit_message(self, interaction: Interaction, channel: discord.TextChannel, message_id: str, content: str):
+    async def edit_message(self, interaction: discord.Interaction, channel: discord.TextChannel, message_id: str, content: str):
         try:
             # Проверка ролей
             if not any(role.id in ALLOWED_ROLES for role in interaction.user.roles):
@@ -204,7 +202,6 @@ class Panel(commands.Cog):
 
             log_old_content = message.content.replace("\n", "\n\\n")
 
-
             # Редактирование
             await message.edit(content=new_content)
 
@@ -221,7 +218,7 @@ class Panel(commands.Cog):
             webhook = next((w for w in webhooks if w.name == "Лилия, следящая за информацией"), None)
 
             if webhook is None:
-                webhook = await channel.create_webhook(name="Лилия, следящая за информацией")
+                webhook = await log_channel.create_webhook(name="Лилия, следящая за информацией")
                 print("Created new webhook")
 
             # Формируем Embed
@@ -230,20 +227,21 @@ class Panel(commands.Cog):
                 ("Новое сообщение:", [new_content, log_content])
             ]
 
-
-            embed = discord.Embed(title=f"Изменено сообщение в #{channel.name}",
-                                  url=f"https://discord.com/channels/{interaction.guild.id}/{channel.id}/{message.id}",
-                                  color=0xF1C40F)
-            embed.set_author(name=interaction.user.name,
-                             icon_url=interaction.user.display_avatar.url)
+            embed = discord.Embed(
+                title=f"Изменено сообщение в #{channel.name}",
+                url=f"https://discord.com/channels/{interaction.guild.id}/{channel.id}/{message.id}",
+                color=0xF1C40F
+            )
+            embed.set_author(
+                name=interaction.user.name,
+                icon_url=interaction.user.display_avatar.url
+            )
             await webhook.send(embed=embed)
 
             for name, values in embeds_pairs:
                 for i, value in enumerate(values):
                     if i == 0:
-                        embed = discord.Embed(title=name,
-                                              description=value,
-                                              color=0xF1C40F)
+                        embed = discord.Embed(title=name, description=value, color=0xF1C40F)
                     else:
                         embed = discord.Embed(color=0xF1C40F)
                         embed.set_footer(text=value)
