@@ -5,6 +5,7 @@ import inspect
 import traceback
 import discord
 import asyncio # noqa
+from copy import deepcopy
 from datetime import timedelta # noqa
 from discord import app_commands, Interaction, Webhook, InvalidData  # noqa
 from discord.ext import commands
@@ -29,7 +30,7 @@ class ColdOldMan(commands.Cog):
         self.utility = self.Utility(cog=self)
         self.countdown = None
 
-    async def send_log(self, user: discord.User | None, func_name: str, text: str):
+    async def send_log(self, func_name: str, text: str, user: discord.User | None = None):
         name_str = ''
         if user:
             name_str = f' у {user.name}'
@@ -91,38 +92,46 @@ class ColdOldMan(commands.Cog):
             guild = self.cog.guild
             try:
                 self.category = await guild.fetch_channel(data.CATEGORY_ID)
-            except (AttributeError, discord.NotFound, discord.HTTPException, discord.InvalidData):
+            except Exception as e:
+                await self.cog.send_log(func_name='fetch_category', text=e)
                 print('Category not found')
             try:
                 self.rules_channel = await guild.fetch_channel(data.RULES_CHANNEL_ID)
-            except (AttributeError, discord.NotFound, discord.HTTPException, discord.InvalidData):
+            except Exception as e:
+                await self.cog.send_log(func_name='fetch_category', text=e)
                 print('Rule not found')
             try:
                 self.announcements_channel = await guild.fetch_channel(data.ANNOUNCEMENTS_CHANNEL_ID)
-            except (AttributeError, discord.NotFound, discord.HTTPException, discord.InvalidData):
+            except Exception as e:
+                await self.cog.send_log(func_name='fetch_category', text=e)
                 print('Announcements not found')
             try:
                 self.general_channel = await guild.fetch_channel(data.GENERAL_CHANNEL_ID)
-            except (AttributeError, discord.NotFound, discord.HTTPException, discord.InvalidData):
+            except Exception as e:
+                await self.cog.send_log(func_name='fetch_category', text=e)
                 print('General not found')
             try:
                 self.log_channel = await guild.fetch_channel(data.LOG_CHANNEL_ID)
-            except (AttributeError, discord.NotFound, discord.HTTPException, discord.InvalidData):
+            except Exception as e:
+                await self.cog.send_log(func_name='fetch_category', text=e)
                 print('Log channel not found')
 
         async def fetch_roles(self):
             guild = self.cog.guild
             try:
                 self.player_role = await guild.fetch_role(data.PLAYER_ROLE_ID)
-            except (AttributeError, discord.NotFound, discord.HTTPException, discord.InvalidData):
+            except Exception as e:
+                await self.cog.send_log(func_name='fetch_roles', text=e)
                 print('Player role not found')
             try:
                 self.frozen_role = await guild.fetch_role(data.FROZEN_ROLE_ID)
-            except (AttributeError, discord.NotFound, discord.HTTPException, discord.InvalidData):
+            except Exception as e:
+                await self.cog.send_log(func_name='fetch_roles', text=e)
                 print('Frozen role not found')
             try:
                 self.announce_role = await guild.fetch_role(data.ANNOUNCE_ROLE_ID)
-            except (AttributeError, discord.NotFound, discord.HTTPException, discord.InvalidData):
+            except Exception as e:
+                await self.cog.send_log(func_name='fetch_roles', text=e)
                 print(f'announce role not found')
 
         async def create_category_and_roles(self):
@@ -336,6 +345,14 @@ class ColdOldMan(commands.Cog):
             async def confirm(self, button_interaction: Interaction, button: Button):  # noqa
                 pass
 
+        class TimeoutView(View):
+            def __init__(self):
+                super().__init__(timeout=None)
+
+            @discord.ui.button(label="Время истекло", style=discord.ButtonStyle.secondary, disabled=True)  # noqa
+            async def confirm(self, button_interaction: Interaction, button: Button):  # noqa
+                pass
+
         class ConfirmedView(View):
             def __init__(self):
                 super().__init__(timeout=None)
@@ -396,71 +413,115 @@ class ColdOldMan(commands.Cog):
                 self.cog: ColdOldMan = cog
                 super().__init__(timeout=None)
 
-                self.up_voters = []
-                self.down_voters = []
-                self.score = 0
+                self.up_voters = set()
+                self.down_voters = set()
 
-                self.button1 = discord.ui.Button(emoji='🔼', style=discord.ButtonStyle.secondary)
-                self.scoreboard = discord.ui.Button(label=f"{self.score}", disabled=True, style=discord.ButtonStyle.gray)
-                self.button2 = discord.ui.Button(emoji='🔽', style=discord.ButtonStyle.secondary)
+                self.up_count = 0
+                self.down_count = 0
 
-                self.button1.callback = self.callback_up
-                self.button2.callback = self.callback_down
+                self.button_up = discord.ui.Button(
+                    emoji='🔼',
+                    label=str(self.up_count),
+                    style=discord.ButtonStyle.secondary
+                )
+                self.button_down = discord.ui.Button(
+                    emoji='🔽',
+                    label=str(self.down_count),
+                    style=discord.ButtonStyle.secondary
+                )
 
-                self.add_item(self.button1)
-                self.add_item(self.scoreboard)
-                self.add_item(self.button2)
+                self.button_up.callback = self.callback_up
+                self.button_down.callback = self.callback_down
 
-            def update_scoreboard(self):
-                self.scoreboard.label = f"{self.score}"
-                if self.score > 0:
-                    self.scoreboard.style = discord.ButtonStyle.green
-                elif self.score < 0:
-                    self.scoreboard.style = discord.ButtonStyle.red
-                else:
-                    self.scoreboard.style = discord.ButtonStyle.gray
+                self.add_item(self.button_up)
+                self.add_item(self.button_down)
+
+            def update_buttons(self):
+                self.button_up.label = str(self.up_count)
+                self.button_down.label = str(self.down_count)
+
+                self.button_up.style = (
+                    discord.ButtonStyle.green if self.up_count > 0
+                    else discord.ButtonStyle.secondary
+                )
+                self.button_down.style = (
+                    discord.ButtonStyle.red if self.down_count > 0
+                    else discord.ButtonStyle.secondary
+                )
 
             async def callback_up(self, interaction: discord.Interaction):
                 if await self.cog.get_player(user_id=interaction.user.id) is None:
-                    await interaction.response.send_message('Вы не зарегистрированы как игрок.', ephemeral=True)
+                    await interaction.response.send_message(
+                        'Вы не зарегистрированы как игрок.',
+                        ephemeral=True
+                    )
                     return
-                if interaction.user.id in self.up_voters:
+
+                user_id = interaction.user.id
+
+                if user_id in self.up_voters:
                     await interaction.response.defer(ephemeral=True)
                     return
-                elif interaction.user.id in self.down_voters:
-                    self.down_voters.remove(interaction.user.id)
-                    self.score += 1
-                self.up_voters.append(interaction.user.id)
-                self.score += 1
-                self.update_scoreboard()
+
+                if user_id in self.down_voters:
+                    self.down_voters.remove(user_id)
+                    self.down_count -= 1
+
+                self.up_voters.add(user_id)
+                self.up_count += 1
+
+                self.update_buttons()
                 await interaction.response.edit_message(view=self)
 
             async def callback_down(self, interaction: discord.Interaction):
                 if await self.cog.get_player(user_id=interaction.user.id) is None:
-                    await interaction.response.send_message('Вы не зарегистрированы как игрок.', ephemeral=True)
+                    await interaction.response.send_message(
+                        'Вы не зарегистрированы как игрок.',
+                        ephemeral=True
+                    )
                     return
-                if interaction.user.id in self.down_voters:
+
+                user_id = interaction.user.id
+
+                if user_id in self.down_voters:
                     await interaction.response.defer(ephemeral=True)
                     return
-                elif interaction.user.id in self.up_voters:
-                    self.up_voters.remove(interaction.user.id)
-                    self.score -= 1
-                self.down_voters.append(interaction.user.id)
-                self.score -= 1
-                self.update_scoreboard()
+
+                if user_id in self.up_voters:
+                    self.up_voters.remove(user_id)
+                    self.up_count -= 1
+
+                self.down_voters.add(user_id)
+                self.down_count += 1
+
+                self.update_buttons()
                 await interaction.response.edit_message(view=self)
 
         class RiddleView(View):
             def __init__(self, cog: commands.Cog):
                 self.cog: ColdOldMan = cog
-                super().__init__(timeout=1200)
-                self.message: discord.Message = None
+                super().__init__(timeout=3600)
+                self.message: discord.Message | None = None
                 self.riddle: str | None = None
                 self.riddle_message: discord.Message | None = None
 
+                self.answer: str | None = None
+                self.answer_message: discord.Message | None = None
+
+            async def interaction_check(self, interaction: discord.Interaction) -> bool:
+                if interaction.user.id != data.PLAYER_MESS_ID:
+                    await interaction.response.send_message('Вы не Просветленный.', ephemeral=True)
+                    self.stop()
+                    return False
+                return True
+
             async def on_timeout(self) -> None:
-                await self.riddle_message.delete()
-                await self.message.delete()
+                self.stop()
+
+                view = self.cog.buttons.TimeoutView()
+
+                if self.message is not None:
+                    await self.message.edit(view=view)
 
             class RiddleTextModal(discord.ui.Modal, title="Загадка"):
                 reason = discord.ui.TextInput(
@@ -480,30 +541,55 @@ class ColdOldMan(commands.Cog):
                         self.view.riddle_message = await interaction.user.send(f'```{self.view.riddle}```')
                     else:
                         await self.view.riddle_message.edit(content=f'```{self.view.riddle}```')
-                    await interaction.response.send_message('Загадка получена.', ephemeral=True)
+                    await interaction.response.defer(ephemeral=True, thinking=False)
+
+            class AnswerTextModal(discord.ui.Modal, title="Решение"):
+                reason = discord.ui.TextInput(
+                    label="Решение загадки.",
+                    placeholder="Максимальная длина — 1900 символов",
+                    style=discord.TextStyle.paragraph,  # многострочное
+                    required=True,
+                    max_length=1900,
+                )
+                def __init__(self, view: View):
+                    super().__init__()
+                    self.view: RiddleView = view
+
+                async def on_submit(self, interaction: discord.Interaction):
+                    self.view.answer = self.reason.value
+                    if not self.view.answer_message:
+                        self.view.answer_message = await interaction.user.send(f'```{self.view.answer}```')
+                    else:
+                        await self.view.answer_message.edit(content=f'```{self.view.answer}```')
+                    await interaction.response.defer(ephemeral=True, thinking=False)
 
             @discord.ui.button(label="Загадка", style=discord.ButtonStyle.primary)
             async def riddle_form(self, interaction: discord.Interaction, button: Button): # noqa
                 await interaction.response.send_modal(self.RiddleTextModal(self))
 
+            @discord.ui.button(label="Решение", style=discord.ButtonStyle.primary)
+            async def answer_form(self, interaction: discord.Interaction, button: Button):  # noqa
+                await interaction.response.send_modal(self.AnswerTextModal(self))
+
             @discord.ui.button(label="Подтвердить", style=discord.ButtonStyle.gray)
-            async def accept(self, interaction: discord.Interaction, button: Button):  # noqa
+            async def accept(self, interaction: discord.Interaction, button: Button): # noqa
                 try:
                     if self.riddle is None:
-                        await interaction.response.send_message(content='Загадка не введена.', ephemeral=True)
+                        await interaction.response.send_message('Загадка не введена.', ephemeral=True)
                         return
-
-                    view = self.cog.buttons.ConfirmOrCancelView(interaction.user)
-                    await interaction.response.send_message(content='Подтвердить? У вас еще есть возможность поменять текст.', ephemeral=True, view=view)
-
-                    await view.wait()
-                    if view.value:
-                        await self.cog.messages.send_riddle(riddle=self.riddle)
-                        await self.riddle_message.delete()
-                        await interaction.message.delete()
-                    await interaction.delete_original_response()
+                    if self.answer is None:
+                        await interaction.response.send_message('Решение не введено.', ephemeral=True)
+                        return
+                    await interaction.response.defer()
+                    asyncio.create_task(self.cog.messages.send_riddle(riddle=self.riddle))
+                    data.ANS_RIDDLE = self.answer
+                    view = self.cog.buttons.ConfirmedView()
+                    await interaction.edit_original_response(view=view)
+                    self.stop()
                 except Exception as e:
-                    print(e)
+                    func_name = inspect.currentframe().f_code.co_name
+                    print(f"Error in {func_name}: {e}")
+                    await interaction.followup.send(f"Произошла ошибка:\n```\n{e}\n```\n-# Обратитесь к Габу если это необходимо.", ephemeral=True)
 
     class Messages:
         def __init__(self, cog: commands.Cog):
@@ -545,18 +631,30 @@ class ColdOldMan(commands.Cog):
             self._wh_general_index = (self._wh_general_index + 1) % 2
 
             death_sign = self.cog.utility.get_death_sign()
-            await announce_webhook.send(content=f'**<@{user_id}> {death_sign}**', avatar_url=self.wh_avatar_url)
+            await announce_webhook.send(content=f'**<@{user_id}> {death_sign}**', avatar_url=self.wh_avatar_url,
+                                       allowed_mentions=discord.AllowedMentions.none())
             await general_webhook.send(content=f'**<@{user_id}> {death_sign}**', avatar_url=self.wh_avatar_url,
                                        allowed_mentions=discord.AllowedMentions.none())
 
-        async def send_congratulation(self, target_id: int | str):
-            view = self.cog.buttons.VotesView(cog=self.cog)
+        async def send_congratulation(self, target_id: int | str, added_score: float):
             announce_role = self.cog.category_and_roles.announce_role
-            await self.cog.category_and_roles.announcements_channel.send(content=f'{announce_role.mention}\n# <@{target_id}> найден!\nОцените прошлую загадку:\n', view=view)
+            view = None
+            answer_str = ''
+            try:
+                if data.ANS_RIDDLE:
+                    view = self.cog.buttons.VotesView(cog=self.cog)
+                    answer_str = f'**Ответ на загадку:**\n```{data.ANS_RIDDLE}```'
+            except AttributeError:
+                data.ANS_RIDDLE = None
+            await self.cog.category_and_roles.announcements_channel.send(content=f'{announce_role.mention}\n# <@{target_id}> найден! (+{added_score})\n{answer_str}', view=view)
+            await self.cog.category_and_roles.general_channel.send(content=f'# <@{target_id}> найден! (+{added_score})\n{answer_str}',
+                                       allowed_mentions=discord.AllowedMentions.none())
 
         async def send_riddle(self, riddle: str):
-            await self.cog.category_and_roles.announcements_channel.send(
-                content=f'**Пришла загадка:**\n```{riddle}```')
+            announce_role = self.cog.category_and_roles.announce_role
+            message = await self.cog.category_and_roles.announcements_channel.send(content=f'{announce_role.mention}\n**Пришла загадка:**\n```{riddle}```')
+            await asyncio.sleep(30)
+            await message.edit(content=f'**Пришла загадка:**\n```{riddle}```')
 
         async def update_or_send_rules(self):
             rules_channel = self.cog.category_and_roles.rules_channel
@@ -613,8 +711,60 @@ class ColdOldMan(commands.Cog):
                                     f'- **Запрещен Голландский штурвал.**\n'
                                     f'- **За нарушение правил вы можете быть временно забанены с ивента.**\n'
                                     f'- **Запрещено делиться скриншотами лички с ботом или раскрывать её любым другим способом.**\n'
-                                    f'**Внизу находиться две форма для загадки. Заполни её и затем нажми "Подтвердить".**', view=view)
+                                    f'**Внизу находиться формы для загадки и решения. Заполни их и затем нажми "Подтвердить".**', view=view)
             view.message = msg
+
+        async def send_personal_notification(
+                self,
+                user: discord.User,
+                added_score: float,
+                old_table: dict[str, dict[str, float]]
+        ):
+            player_id = str(user.id)
+            service_id = '512079329619083291'
+
+            if player_id == service_id:
+                await user.send(f"Вас раскрыли! (+{round(added_score, 1)})")
+                return
+
+            old_table = old_table.copy()
+            new_table_raw = self.cog.table.table_dict.copy()
+
+            old_table.pop(service_id, None)
+            new_table_raw.pop(service_id, None)
+
+            if player_id not in old_table or player_id not in new_table_raw:
+                await user.send(f"Вас раскрыли! (+{round(added_score, 1)})")
+                return
+
+            # Старый порядок нужен как общий тай-брейк и для old, и для new
+            base_order = {uid: i for i, uid in enumerate(old_table.keys())}
+
+            old_table = self.cog.table.get_sorted_table(table=old_table, base_order=base_order)
+            new_table = self.cog.table.get_sorted_table(table=new_table_raw, base_order=base_order)
+
+            old_pos = list(old_table).index(player_id)
+            new_pos = list(new_table).index(player_id)
+
+            if new_pos >= old_pos:
+                await user.send(f"Вас раскрыли! (+{round(added_score, 1)})")
+                return
+
+            items = list(new_table.items())
+            lines = [f"Вас раскрыли! (+{round(added_score, 1)})"]
+
+            start = new_pos
+            end = min(len(items), old_pos + 2)
+
+            for i in range(start, end):
+                plr_id, _data = items[i]
+
+                if plr_id == player_id:
+                    lines.append(f"{i + 1}. <@{player_id}> — {round(_data['score'], 1)} (вы обошли {i} игрока/ов)")
+                else:
+                    lines.append(f"{i + 1}. ↑ <@{plr_id}> — {round(_data['score'], 1)}")
+
+            await user.send("\n".join(lines))
 
     class Table:
         def __init__(self, cog: commands.Cog, json_path: str):
@@ -659,11 +809,14 @@ class ColdOldMan(commands.Cog):
             self._commit_table()
 
         def froze_player(self, user_id: int):
-            str_user_id = str(user_id)
-            if str_user_id not in self.table_dict.keys():
-                return
-            self.table_dict[str_user_id]['frozen'] = True
-            self._commit_table()
+            try:
+                str_user_id = str(user_id)
+                if str_user_id not in self.table_dict.keys():
+                    return
+                self.table_dict[str_user_id]['frozen'] = True
+                self._commit_table()
+            except Exception as e:
+                print('Exception froze_player:', e)
 
         def unfroze_player(self, user_id: int):
             str_user_id = str(user_id)
@@ -686,12 +839,39 @@ class ColdOldMan(commands.Cog):
             self.table_dict[str_user_id]['ban'] = False
             self._commit_table()
 
-        def add_score(self, user_id: int, score: int):
+        def _get_top_score(self) -> float:
+            table = self.get_sorted_table()
+
+            if table.get('512079329619083291'):
+                del table['512079329619083291']
+
+            _data = next(iter(table.values()))
+            return _data['score']
+
+        def add_score(self, user_id: int) -> tuple[float, dict | None]:
             str_user_id = str(user_id)
-            if str_user_id not in self.table_dict.keys():
-                return
-            self.table_dict[str_user_id]['score'] += score
+            if str_user_id not in self.table_dict:
+                return None
+
+            if str_user_id == '512079329619083291':
+                self.table_dict[str_user_id]['score'] += 1
+                self._commit_table()
+                return 1.0, None
+
+            user_score = self.table_dict[str_user_id]['score']
+            top_score = self._get_top_score()
+            score_diff = top_score - user_score
+
+            added_score = round(1 + score_diff * 0.2, 1)
+            new_score = round(user_score + added_score, 1)
+
+            old_table = deepcopy(self.table_dict)
+            old_table.pop('512079329619083291', None)
+            self.table_dict[str_user_id]['score'] = new_score
+
             self._commit_table()
+
+            return added_score, old_table
 
         def get_player_data(self, user_id: int) -> dict:
             str_user_id = str(user_id)
@@ -702,12 +882,17 @@ class ColdOldMan(commands.Cog):
         def get_random_player_id(self):
             return random.choice(tuple(self.table_dict))
 
-        def get_sorted_table(self) -> dict[str, dict[str, int | bool]]:
+        def get_sorted_table(self, table: dict | None = None, base_order: dict[str, int] | None = None) -> dict[str, dict]:
+            if table is None:
+                table = self.table_dict
+
+            if base_order is None:
+                base_order = {uid: i for i, uid in enumerate(table.keys())}
+
             return dict(
                 sorted(
-                    self.table_dict.items(),
-                    key=lambda item: item[1]['score'],
-                    reverse=True
+                    table.items(),
+                    key=lambda item: (-item[1]['score'], base_order.get(item[0], 10 ** 9))
                 )
             )
 
@@ -722,6 +907,9 @@ class ColdOldMan(commands.Cog):
                 if player_data['frozen']:
                     q = '~~'
                     frozen_str = frozen_role.mention
+                if player_id == '512079329619083291':
+                    lines.insert(0, f'ㅤ   {q}<@{player_id}>{q} — {player_data['score']} {frozen_str}')
+                    continue
                 lines.append(f'{i}. {q}<@{player_id}>{q} — {player_data['score']} {frozen_str}')
             return "\n".join(lines)
 
@@ -743,9 +931,12 @@ class ColdOldMan(commands.Cog):
             self.frozen: bool = player_data['frozen']
             self.banned: bool = player_data['ban']
 
-        def add_score(self, score: int):
-            self.score += score
-            self.cog.table.add_score(user_id=self.user.id, score=score)
+        def _update_score(self):
+            player_data = self.cog.table.get_player_data(user.id)
+            self.score = player_data['score']
+
+        def add_win_score(self) -> tuple[float, dict]:
+            return self.cog.table.add_score(user_id=self.user.id)
 
         def ban(self):
             self.cog.table.ban_player(self.user.id)
@@ -759,24 +950,37 @@ class ColdOldMan(commands.Cog):
             return False
 
         async def freeze(self):
-            self.cog.table.froze_player(self.user.id)
             member = await self.cog.guild.fetch_member(self.user.id)
-            await member.add_roles(self.cog.category_and_roles.frozen_role)
+            try:
+                self.cog.table.froze_player(self.user.id)
+                await self.cog.category_and_roles.fetch_roles()
+                frozen_role = self.cog.category_and_roles.frozen_role
+                player_role = self.cog.category_and_roles.player_role
+                await member.add_roles(frozen_role, reason="Freeze")
+                await member.remove_roles(player_role, reason="Freeze")
+                await asyncio.sleep(0.2)
+            except Exception as e:
+                await self.cog.send_log(func_name='freeze', text=e, user=member)
+                await asyncio.sleep(1.0)
 
         async def unfreeze(self):
             self.cog.table.unfroze_player(self.user.id)
             member = await self.cog.guild.fetch_member(self.user.id)
+            await member.add_roles(self.cog.category_and_roles.player_role)
             await member.remove_roles(self.cog.category_and_roles.frozen_role)
 
         async def synchronize_roles(self):
             player_data = self.cog.table.get_player_data(self.user.id)
             member = await self.cog.guild.fetch_member(self.user.id)
             if player_data is not None:
-                await member.add_roles(self.cog.category_and_roles.player_role, reason='Роли синхронизированы.')
+                if not player_data.get('frozen'):
+                    await member.add_roles(self.cog.category_and_roles.player_role, reason='Роли синхронизированы.')
+                    await member.remove_roles(self.cog.category_and_roles.frozen_role, reason='Роли синхронизированы.')
+                else:
+                    await member.add_roles(self.cog.category_and_roles.frozen_role, reason='Роли синхронизированы.')
+                    await member.remove_roles(self.cog.category_and_roles.player_role, reason='Роли синхронизированы.')
             else:
                 return
-            if player_data['frozen']:
-                await member.add_roles(self.cog.category_and_roles.frozen_role, reason='Роли синхронизированы.')
 
         async def add_announce_role(self):
             member = await self.cog.guild.fetch_member(self.user.id)
@@ -809,8 +1013,26 @@ class ColdOldMan(commands.Cog):
             self.cog.table.unfroze_all()
             await self.cog.category_and_roles.fetch_roles()
             frozen_role = self.cog.category_and_roles.frozen_role
-            for member in frozen_role.members:
-                await member.remove_roles(frozen_role)
+            player_role = self.cog.category_and_roles.player_role
+
+            members = list(frozen_role.members)
+
+            for member in members:
+                try:
+                    await member.remove_roles(frozen_role, reason="Unfreeze all players")
+                    await member.add_roles(player_role, reason="Unfreeze all players")
+                except discord.Forbidden as e:
+                    print(f"[403] Нет прав/иерархия для {member}: {e}")
+                    await self.cog.send_log(func_name='unfroze_all_players', text=e)
+                except discord.HTTPException as e:
+                    print(f"[{e.status}] Ошибка API для {member}: {e}")
+                    await self.cog.send_log(func_name='unfroze_all_players', text=e)
+                    if e.status == 429:
+                        await asyncio.sleep(2.0)
+                except Exception as e:
+                    await self.cog.send_log(func_name='unfroze_all_players', text=e)
+                    await asyncio.sleep(1.0)
+                await asyncio.sleep(0.2)
 
     class Utility:
         def __init__(self, cog: commands.Cog):
@@ -864,84 +1086,66 @@ class ColdOldMan(commands.Cog):
 
     async def guess_main_task(self, interaction: Interaction, player_id: int, target_id: int):
         if not self.game.game_active:
-            await asyncio.sleep(1.5)
-            await interaction.followup.send(f'Игра не активна несколько секунд.', ephemeral=True)
+            await interaction.response.send_message(f'Игра не активна или вы не успели.', ephemeral=True)
             return
         player = await self.get_player(player_id)
-        target = await self.get_player(target_id)
-
-        if player is None:
-            await asyncio.sleep(1)
-            await interaction.followup.send('Вы не зарегистрированы как игрок.', ephemeral=True)
-            return
-        if target is None or target.frozen:
-            return
         if player.ded():
+            await interaction.response.defer(ephemeral=True, thinking=False)
+            await interaction.delete_original_response()
             return
         if player.banned:
-            await asyncio.sleep(1)
-            await interaction.followup.send('Вы забанены с игры.', ephemeral=True)
+            await interaction.response.send_message('Вы забанены с игры.', ephemeral=True)
             return
-
         if player.frozen:
-            await asyncio.sleep(1)
-            await interaction.followup.send(f'{self.category_and_roles.frozen_role.mention} не может угадывать.', ephemeral=True)
+            await interaction.response.send_message(f'{self.category_and_roles.frozen_role.mention} не может угадывать.', ephemeral=True)
             await player.synchronize_roles()
             return
+        if player is None:
+            await interaction.response.send_message('Вы не зарегистрированы как игрок.', ephemeral=True)
+            return
+        target = await self.get_player(target_id)
+        if target is None:
+            await interaction.response.send_message('Цель не зарегистрирована как игрок.', ephemeral=True)
+            return
+        if target.frozen:
+            await interaction.response.send_message(f'Это {self.category_and_roles.frozen_role.mention}.', ephemeral=True)
+            return
+
+        await interaction.response.defer(ephemeral=True, thinking=False)
 
         if not target.ded():
             if not self.game.game_active:
-                await interaction.followup.send(f'Игра не активна несколько секунд.', ephemeral=True)
+                await interaction.followup.send(f'Игра не активна или вы не успели.', ephemeral=True)
                 return
+            await interaction.delete_original_response()
             await self.messages.send_death_sign(user_id=player_id)
             await player.freeze()
             await self.messages.update_or_send_table()
         else:
             if not self.game.game_active:
-                await interaction.followup.send(f'Игра не активна несколько секунд.', ephemeral=True)
+                await interaction.followup.send(f'Игра не активна или вы не успели.', ephemeral=True)
                 return
+            await interaction.delete_original_response()
             self.game.stop()
-            await self.game.unfroze_all_players()
-            target.add_score(1)
+            asyncio.create_task(self.game.unfroze_all_players())
+            added_score, old_table = target.add_win_score()
             player.make_dedom()
-            asyncio.create_task(self.messages.send_congratulation(target_id=target_id))
-            asyncio.create_task(self.messages.send_riddle_form(user=interaction.user))
             await target.freeze()
-            await asyncio.sleep(5)
-            await self.messages.update_or_send_table()
+            asyncio.create_task(self.messages.send_personal_notification(user=target.user, added_score=added_score, old_table=old_table))
+            asyncio.create_task(self.messages.send_congratulation(target_id=target_id, added_score=added_score))
+            asyncio.create_task(self.messages.send_riddle_form(user=interaction.user))
+            asyncio.create_task(self.messages.update_or_send_table())
+            await asyncio.sleep(10)
+            data.ANS_RIDDLE = None
             self.game.start()
-    async def guess_autocomplete(self, interaction: discord.Interaction, current: str):
-        players_data = self.table.get_sorted_table()
-        players = []
-        self_user_id = interaction.user.id
-        for player_id, player_data in players_data.items():
-            if int(player_id) == self_user_id:
-                continue
-            player = self.guild.get_member(int(player_id))
-            if player is None:
-                player = await self.bot.fetch_user(int(player_id))
-            display_name = player.display_name
-            user_name = player.name
-            if player_data['frozen']:
-                continue
-            if current.lower() in display_name.lower() or current.lower() in user_name.lower():
-                players.append(app_commands.Choice(name=player.display_name, value=str(player.id)))
-            if len(players) >= 25:
-                break
-        return players
     @app_commands.command(name='guess', description='Угадать цель.')
     @app_commands.describe(target='Выберите игрока.')
     @app_commands.guilds(config.GUILD)
-    @app_commands.autocomplete(target=guess_autocomplete)
-    async def guess(self, interaction: Interaction, target: str):
+    async def guess(self, interaction: Interaction, target: discord.User):
         try:
-            target_id = int(target)
+            target_id = target.id
             player_id = interaction.user.id
-
             asyncio.create_task(self.guess_main_task(interaction=interaction, player_id=player_id, target_id=target_id))
-
-            await interaction.response.defer(thinking=False, ephemeral=True)
-            await interaction.delete_original_response()
         except Exception as e:
             func_name = inspect.currentframe().f_code.co_name
             tb = traceback.format_exc()
@@ -1045,14 +1249,14 @@ class ColdOldMan(commands.Cog):
             await interaction.followup.send(f"Произошла ошибка:\n```\n{e}\n```", ephemeral=True)
 
     @app_commands.command(name='alchemist_ban', description='Забанить игрока.')
-    @app_commands.describe(member='Выберите игрока.')
+    @app_commands.describe(user='Выберите игрока.')
     @app_commands.guilds(config.GUILD)
-    async def alchemist_ban(self, interaction: Interaction, member: discord.Member):
+    async def alchemist_ban(self, interaction: Interaction, user: discord.User):
         try:
             if interaction.user.id != 512079329619083291:
                 await interaction.response.send_message('Нет полномочий.', ephemeral=True)
                 return
-            player = await self.get_player(member.id)
+            player = await self.get_player(user.id)
             player.ban()
             await interaction.response.send_message('Игрок заблокирован с ивента.', ephemeral=True)
             return
