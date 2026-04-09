@@ -2,6 +2,7 @@ import json
 import os
 from threading import Lock
 from typing import Any
+import sqlite3
 
 class JsonWorker:
     def __init__(self, json_path: str):
@@ -201,3 +202,19 @@ class BridgeStorage:
         return element
 
 storage = BridgeStorage()
+
+
+class Database:
+    def __init__(self, path: str) -> None:
+        self._con = sqlite3.connect(path)
+        self._con.row_factory = sqlite3.Row
+        self._con.execute("PRAGMA foreign_keys = ON")
+
+    def close_(self) -> None:
+        self._con.close()
+
+    def execute(self, query: str, params: tuple[Any, ...] = ()) -> sqlite3.Cursor:
+        return self._con.execute(query, params)
+
+    def transaction(self):
+        return self._con
