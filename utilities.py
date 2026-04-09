@@ -1,6 +1,7 @@
 import json
 import os
 from threading import Lock
+from pathlib import Path
 from typing import Any
 import sqlite3
 
@@ -205,8 +206,11 @@ storage = BridgeStorage()
 
 
 class Database:
-    def __init__(self, path: str) -> None:
-        self._con = sqlite3.connect(path)
+    def __init__(self) -> None:
+        base_dir = Path(__file__).resolve().parent
+        db_path = base_dir / 'database.db'
+
+        self._con = sqlite3.connect(db_path)
         self._con.row_factory = sqlite3.Row
         self._con.execute("PRAGMA foreign_keys = ON")
 
