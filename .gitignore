@@ -1,5 +1,6 @@
 build/*
 .venv
+venv
 __pycache__/
 base*
 ranks.db
@@ -11,3 +12,4 @@ LinkMess.json
 temp/*
 /modules/cold_old_man/data.json
 /modules/cold_old_man/table.json
+/modules/bridge/cogs/temp/
