@@ -214,6 +214,44 @@ class Database:
         self._con.row_factory = sqlite3.Row
         self._con.execute("PRAGMA foreign_keys = ON")
 
+        self._init_db()
+
+    def _init_db(self) -> None:
+        with self.transaction():
+
+            self.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    discord_id INTEGER NOT NULL UNIQUE,
+                    discord_twink_id INTEGER UNIQUE,
+                    telegram_id INTEGER UNIQUE,
+                    telegram_bot_id INTEGER UNIQUE,
+                    karma INTEGER NOT NULL DEFAULT 0
+                );
+            """)
+
+            self.execute("""
+                CREATE TABLE IF NOT EXISTS karmic_connections (
+                    user1_id INTEGER NOT NULL,
+                    user2_id INTEGER NOT NULL,
+                    points REAL NOT NULL DEFAULT 0,
+    
+                    PRIMARY KEY (user1_id, user2_id),
+                    CHECK (user1_id < user2_id),
+    
+                    FOREIGN KEY (user1_id) REFERENCES users(id) ON DELETE CASCADE,
+                    FOREIGN KEY (user2_id) REFERENCES users(id) ON DELETE CASCADE
+                );
+            """)
+
+    def add_user(self, client_id: int, user_type: str = 'discord'):
+        """
+        Add a user to the database.
+        params:
+        - client_id (int): Discord client id
+        - user_type (str): Discord user type
+        """
+
     def close_(self) -> None:
         self._con.close()
 

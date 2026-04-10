@@ -1360,4 +1360,5 @@ class ColdOldMan(commands.Cog):
             await interaction.followup.send(f"Произошла ошибка:\n```\n{e}\n```", ephemeral=True)
 
 async def setup(bot):
-    await bot.add_cog(ColdOldMan(bot))
+    # await bot.add_cog(ColdOldMan(bot))
+    pass
