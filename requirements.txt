@@ -1,1 +1,26 @@
-discord.py
+aiohappyeyeballs
+aiohttp
+aiosignal
+aiosqlite
+anyio
+attrs
+audioop-lts
+certifi
+colorama
+discord.py>=2.0
+frozenlist
+greenlet
+h11
+httpcore
+httpx
+idna
+install-playwright
+multidict
+pillow
+playwright>=1.58         # Version is important
+propcache
+pyee
+pylottie
+python-telegram-bot>=20
+typing_extensions
+yarl
