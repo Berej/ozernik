@@ -1,13 +1,16 @@
 build/*
 .venv
+.env
 __pycache__/
 base*
 ranks.db
 token.txt
-test
+*test.py
 test/*
 config.json
 LinkMess.json
 temp/*
+modules/bridge/data.json
+modules/karma_sistem/data.json
 /modules/cold_old_man/data.json
 /modules/cold_old_man/table.json
